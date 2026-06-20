@@ -25,10 +25,16 @@ Real qurğuların yanına realistik **tələlər (decoy)** yerləşdiririk: saxt
 ## Əsas funksiyalar
 - 🎯 **4 Tələ (Decoy):** saxta svetofor, saxta portal, canary token, saxta kamera.
 - 🧠 **3 qatlı Sİ:** (1) IsolationForest anomaliya aşkarlama (ML), (2) hibrid ML+qayda təsnifat və risk, (3) opsional LLM hesabat.
-- 📊 **Kiber-insident paneli:** şəhər şəbəkə xəritəsi, canlı siqnal axını, risk səviyyələri, MITRE ATT&CK etiketləri.
+- 🗺️ **İnteraktiv şəhər xəritəsi (SVG):** 4 rayon, qovşaqlar canlı vəziyyətə görə yaşıl/sarı/qırmızı (nəbzli) yanır; üzərinə gələndə şüşəvari (glassmorphism) tooltip; tam ekran rejimi.
+- 🎬 **Simulyasiya İdarə Mərkəzi:** "Hücumu Başlat" hücumçunun səyahətini mərhələ-mərhələ (Kəşfiyyat → Brute Force → Sızma) real-vaxt danışır; siqnallar canlı axına pilləli (jitter ilə) düşür və risk rənginə görə parıldayır.
+- 📂 **Log Analiz Mərkəzi + Çevirici:** real korporativ logları yükləyin — **Syslog (RFC 5424)**, **Windows Event (EVTX/JSON)**, **CEF/LEEF** — çevirici onları avtomatik platformanın formatına xəritələyir və ML mühərrikinə verir.
+- 📊 **Kiber-insident paneli:** canlı siqnal axını, risk səviyyələri, MITRE ATT&CK etiketləri.
 - 📈 **Hər hadisə üçün risk balı** və anomaliya balı.
 - 📝 **Azərbaycanca insident hesabatı** + niyə yüksək riskli olduğunun izahı.
-- 🔴 **Hücum simulyatoru** — bir düymə ilə bütün zənciri canlı işə salır.
+
+### İki iş rejimi (canlı simulyasiya vs forenzik analiz)
+- **🔴 Hücumu Başlat** — interaktiv təlim / canlı demo. Dramatik hekayə frontend-də idarə olunur, **lakin hər hadisə yenə backend ML mühərrikindən real bal alır (hibrid)**.
+- **📂 Log Analiz Mərkəzi** — post-insident audit / forenzika. Real yüklənmiş fayllar çevrilib ML mühərrikinə verilir.
 
 ## Texnologiya steki
 - **Backend:** Python 3 · FastAPI · uvicorn (vəziyyət yaddaşda saxlanılır, verilənlər bazası yoxdur).
@@ -81,6 +87,16 @@ Paneli görmək üçün **giriş (login) tələb olunmur** — dashboard birbaş
 
 Data [`src/backend/gen_sample_data.py`](src/backend/gen_sample_data.py) ilə təkrarlana bilən şəkildə yaradılır. Mühərrik bu faylı da analiz edir: `POST /api/analyze-logs` (hər log sətri eyni Sİ mühərrikindən keçir; yalnız şübhəli olanlar siqnal kimi panelə çıxır).
 
+**Real log yükləmə:** "📂 Log Analiz Mərkəzi" düyməsi ilə öz Syslog/Windows/CEF fayllarınızı yükləyin (və ya "Nümunə doldur" ilə hazır nümunə sınayın). Çevirici sahələri xəritələyir → `POST /api/analyze-upload` ML mühərrikinə göndərir. Çevirici kodu: [`src/frontend/src/logConverter.js`](src/frontend/src/logConverter.js).
+
+### API endpoint-ləri (xülasə)
+- `GET /api/state` — bütün cari vəziyyət (frontend hər 1s soruşur)
+- `POST /api/simulate-attack` — canlı hücum simulyasiyası (kəşfiyyat → tələ → brute-force → canary)
+- `POST /api/analyze-logs` — daxili nümunə CSV-ni analiz et
+- `POST /api/analyze-upload` — yüklənmiş (çevrilmiş) logları analiz et
+- `POST /api/reset` — vəziyyəti təmizlə
+- `GET /decoy/...` — 4 tələ endpoint-i
+
 ## Məhdudiyyətlər
 - Bu, **MVP (minimum işlək məhsul)** prototipidir, real istehsalat sistemi deyil.
 - Vəziyyət yaddaşda saxlanılır — server söndükdə data sıfırlanır (verilənlər bazası yoxdur).
@@ -92,6 +108,8 @@ Data [`src/backend/gen_sample_data.py`](src/backend/gen_sample_data.py) ilə tə
 - Daha çox tələ şablonu (sayğac, PLC, IoT gateway).
 - Mərkəzi konsol + çox-saytlı (multi-tenant) idarəetmə.
 - WebSocket ilə real-vaxt push (poll əvəzinə).
+- Çeviriciyə daha çox format (Zeek, Suricata EVE, AWS CloudTrail) və server tərəfi parsing.
+- Model fərdiləşdirmə: hər saytın "normal"-ını öz tarixi loglarından öyrənmək.
 
 ## Etik və hüquqi qeydlər
 Hər şey bizim öz təcrid olunmuş lokal mühitimizdə işləyir. Heç bir real sistemə, şəbəkəyə və ya üçüncü tərəfə hücum etmirik. "Hücumçu" bizim öz simulyasiya skriptimizdir. Tələlərdə yalnız **saxta data** var — real vətəndaş məlumatı yoxdur. Həll **tamamilə müdafiə xarakterlidir**. Detallar: [`docs/ethical-declaration.md`](docs/ethical-declaration.md).
