@@ -1,7 +1,7 @@
 # Pitch Deck — Slayd Strukturu (8–12 slayd)
 
-> Qeyd: bu, slaydların məzmun planıdır. Faza 6-da tam doldurulacaq.
-> Slaydları ayrıca hazırlayıb `presentation/pitch-deck.pdf` kimi yerləşdiririk.
+> Bu, slaydların məzmun planıdır. Slaydları ayrıca hazırlayıb
+> `presentation/pitch-deck.pdf` kimi yerləşdiririk.
 
 1. **Başlıq** — Zephyrus · City Trap · "Ağıllı şəhər üçün Sİ əsaslı aldatma şəbəkəsi".
 2. **Problem** — köhnə qurğular, default parollar, analitik minlərlə logu oxuya bilmir.

@@ -15,6 +15,7 @@ from store import store
 from decoys import router as decoy_router
 from log_analyzer import analyze_csv
 from attack_sim import simulate_attack
+from report import ai_report
 
 # FastAPI tətbiqi yaradılır. "title" Swagger sənədlərində görünür.
 app = FastAPI(title="Zephyrus City Trap — Aşkarlama Mühərriki")
@@ -72,3 +73,15 @@ def simulate():
 def reset_state():
     store.reset()
     return {"status": "təmizləndi", "mesaj": "Bütün hadisə və siqnallar sıfırlandı."}
+
+
+# OPSİONAL — seçilmiş siqnal üçün Sİ (Claude) hesabatı yaradır.
+# ANTHROPIC_API_KEY yoxdursa, sakitcə offline şablon hesabatı qaytarır.
+# Frontend "🧠 Sİ Hesabatı" düyməsi bunu çağırır (polling-də deyil).
+@app.post("/api/report/{alert_id}/ai")
+def generate_ai_report(alert_id: int):
+    # Siqnalı id-yə görə tapırıq.
+    alert = next((a for a in store.alerts if a.get("id") == alert_id), None)
+    if alert is None:
+        return {"xeta": "Belə siqnal tapılmadı.", "alert_id": alert_id}
+    return ai_report(alert)

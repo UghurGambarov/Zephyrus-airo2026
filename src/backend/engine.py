@@ -25,6 +25,8 @@ from sklearn.ensemble import IsolationForest
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from report import template_report  # QAT 3 — Azərbaycanca insident hesabatı
+
 
 # ---------------------------------------------------------------------
 # ML ÜÇÜN ƏLAMƏTLƏR (features) — hər biri Azərbaycanca izah olunur.
@@ -232,7 +234,7 @@ def build_alert(event, all_events, is_decoy, source_kind):
         threat_class, mitre, mitre_ad, risk = classify_stream(info, bal)
         reason = _izah_yarat(bal, info)
 
-    return {
+    alert = {
         "event_id": event["id"],
         "timestamp": event["timestamp"],
         "time": event["time"],
@@ -248,3 +250,7 @@ def build_alert(event, all_events, is_decoy, source_kind):
         "reason": reason,                # NİYƏ bu qiymət verildi (izah)
         "admin_alert": "Administrator xəbərdar edildi (simulyasiya).",
     }
+    # QAT 3 — hadisəyə hazır Azərbaycanca insident hesabatını əlavə edirik
+    # (offline şablon; /api/state ilə birbaşa frontend-ə çatır).
+    alert["report"] = template_report(alert)
+    return alert

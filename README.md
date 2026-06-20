@@ -38,7 +38,13 @@ Real qurğuların yanına realistik **tələlər (decoy)** yerləşdiririk: saxt
 - **LLM (opsional):** Claude (`claude-sonnet-4-6`) — yalnız `ANTHROPIC_API_KEY` varsa; əks halda offline şablon hesabat işləyir.
 
 ### İstifadə olunan açıq mənbə kitabxanalar (açıqlama)
-FastAPI, uvicorn, scikit-learn, numpy, pandas, python-multipart, React, Vite və (opsional) Anthropic Claude API. Tam siyahı: [`requirements.txt`](requirements.txt) və [`src/frontend/package.json`](src/frontend/package.json).
+FastAPI, uvicorn, scikit-learn, numpy, pandas, python-multipart, React, Vite və (opsional) Anthropic Claude API. Yalnız sənəd üçün: **matplotlib** — memarlıq diaqramını (`docs/architecture-diagram.png`) yaradan skriptdə işlədilir, sistemin işləməsi üçün lazım deyil. Tam siyahı: [`requirements.txt`](requirements.txt) və [`src/frontend/package.json`](src/frontend/package.json).
+
+### Sənədlər
+- Memarlıq diaqramı: [`docs/architecture-diagram.png`](docs/architecture-diagram.png) (skriptlə yaradılır: [`docs/gen_architecture_diagram.py`](docs/gen_architecture_diagram.py))
+- Problemin təsviri: [`docs/problem-description.md`](docs/problem-description.md)
+- Etik bəyannamə: [`docs/ethical-declaration.md`](docs/ethical-declaration.md)
+- Pitch deck planı: [`presentation/pitch-deck-outline.md`](presentation/pitch-deck-outline.md)
 
 ## Necə işə salınır
 **Tələblər:** Windows · Python 3 · Node.js (artıq quraşdırılıb).
