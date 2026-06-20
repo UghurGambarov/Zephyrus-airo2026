@@ -59,6 +59,11 @@ cd src\frontend
 npm run dev
 ```
 
+### Hücum simulyasiyasını işə salmaq
+İki yol var (hər ikisi yalnız öz lokal serverimizə təsir edir):
+- **Dashboard düyməsi (tövsiyə):** "🔴 Hücumu Başlat" → `POST /api/simulate-attack` çağırır və bütün zənciri (kəşfiyyat → tələlər → brute-force → canary) bir anda canlandırır.
+- **Müstəqil skript:** server işləyərkən `python src/backend/attacker.py` — real HTTP sorğuları ilə tələləri vurur. Bu, "hücumçu"-nun bizim öz skriptimiz olduğunu və heç bir real sistemə toxunmadığını göstərir.
+
 ## Demo giriş məlumatları
 Paneli görmək üçün **giriş (login) tələb olunmur** — dashboard birbaşa açılır. (Saxta portal tələsi isə qəsdən hər parolu "qəbul edir" ki, brute-force cəhdlərini qeydə alsın — bu, real giriş deyil, tələdir.)
 

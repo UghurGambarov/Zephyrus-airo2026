@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from store import store
 from decoys import router as decoy_router
 from log_analyzer import analyze_csv
+from attack_sim import simulate_attack
 
 # FastAPI tətbiqi yaradılır. "title" Swagger sənədlərində görünür.
 app = FastAPI(title="Zephyrus City Trap — Aşkarlama Mühərriki")
@@ -41,7 +42,7 @@ def root():
     return {
         "ad": "Zephyrus City Trap",
         "status": "işləyir",
-        "mesaj": "Backend uğurla işə düşdü. Faza 3: şəhər log axını analiz olunur.",
+        "mesaj": "Backend uğurla işə düşdü. Faza 4: hücum simulyatoru hazırdır.",
     }
 
 
@@ -57,6 +58,13 @@ def get_state():
 @app.post("/api/analyze-logs")
 def analyze_logs(reset: bool = True):
     return analyze_csv(reset_first=reset)
+
+
+# Hücum simulyasiyasını işə salır (dashboard "🔴 Hücumu Başlat" düyməsi).
+# Bütün zəncir: kəşfiyyat → tələlər → brute-force → canary.
+@app.post("/api/simulate-attack")
+def simulate():
+    return simulate_attack(reset_first=True)
 
 
 # Demo-nu təmizləmək üçün: bütün hadisə və siqnalları sıfırlayır.
