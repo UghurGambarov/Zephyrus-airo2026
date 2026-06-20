@@ -37,12 +37,18 @@ const MAP_LAYOUT = {
 };
 
 // Xəritədəki rayon (district) bölgələri — fon dördbucaqları + etiket.
+// Hər rayona fərqli incə rəng çaları (tint) verilir ki, dörd kvadrant
+// bir-birindən aydın seçilsin.
 const DISTRICTS = [
-  { x: 16, y: 26, w: 200, h: 178, label: "HÖKUMƏT RAYONU" },
-  { x: 252, y: 26, w: 192, h: 178, label: "BANK SEKTORU" },
-  { x: 16, y: 252, w: 200, h: 200, label: "SƏNAYE ZONASI" },
-  { x: 252, y: 252, w: 192, h: 200, label: "DATA MƏRKƏZİ" },
+  { x: 16, y: 26, w: 200, h: 178, label: "HÖKUMƏT RAYONU", tint: "rgba(56,224,216,0.07)" },
+  { x: 252, y: 26, w: 192, h: 178, label: "BANK SEKTORU", tint: "rgba(255,179,64,0.07)" },
+  { x: 16, y: 252, w: 200, h: 200, label: "SƏNAYE ZONASI", tint: "rgba(61,220,132,0.07)" },
+  { x: 252, y: 252, w: 192, h: 200, label: "DATA MƏRKƏZİ", tint: "rgba(170,120,255,0.08)" },
 ];
+
+// Hücum/analiz zamanı qovşaqların ARDICIL "yanma" sırası (mərhələ-mərhələ).
+// Əvvəlcə real cihazlarda kəşfiyyat (sarı), sonra tələlər (qırmızı) "sıçrayır".
+const SEQ_ORDER = ["tl-01", "cam-01", "mtr-01", "srv-01", "d-tl", "d-cam", "d-portal", "d-canary"];
 
 // Real qovşağı CSV/hücum hadisəsinə bağlayan ad-prefiksləri.
 // (Tələ qovşaqları birbaşa "kind" sahəsi ilə uyğunlaşır.)
@@ -99,6 +105,9 @@ function App() {
   const [busy, setBusy] = useState(false);              // düymə əməliyyatı gedir?
   const [aiReport, setAiReport] = useState(null);       // opsional Sİ hesabatı
   const [aiLoading, setAiLoading] = useState(false);
+  // Xəritədə ardıcıl "yanma" animasiyasını başladan tetik (trigger sayğacı + rejim).
+  const [seqTrigger, setSeqTrigger] = useState(0);
+  const [seqMode, setSeqMode] = useState(null);
 
   // --- HƏR 1 SANİYƏDƏ backend-dən vəziyyəti çəkirik (canlı yenilənmə) ---
   useEffect(() => {
@@ -139,19 +148,27 @@ function App() {
   // QEYD: yeni hücum/analiz hadisələri sıfırdan nömrələdiyi üçün köhnə "selectedId"
   // səhvən başqa siqnala uyğun gələ bilər. Buna görə seçimi də sıfırlayırıq ki,
   // hesabat paneli avtomatik olaraq ən yeni siqnalı göstərsin.
+  // Xəritədəki ardıcıl animasiyanı başlat (rejim: 'attack' | 'logs' | 'reset').
+  const fireSeq = (mode) => {
+    setSeqMode(mode);
+    setSeqTrigger((t) => t + 1);
+  };
   const hucumBaslat = () => {
     setSelectedId(null);
     setAiReport(null);
+    fireSeq("attack");
     post("/api/simulate-attack");
   };
   const loglariAnaliz = () => {
     setSelectedId(null);
     setAiReport(null);
+    fireSeq("logs");
     post("/api/analyze-logs");
   };
   const temizle = () => {
     setSelectedId(null);
     setAiReport(null);
+    fireSeq("reset");
     post("/api/reset");
   };
 
@@ -219,7 +236,7 @@ function App() {
         {/* ---------- SOL: ŞƏHƏR ŞƏBƏKƏSİ (interaktiv SVG xəritə) ---------- */}
         <section className="zona zona-net">
           <ZonaBasliq nomre="01" ad="Şəhər Şəbəkəsi" alt="Canlı infrastruktur xəritəsi" />
-          <CityMap nodes={state.nodes || []} alerts={alerts} />
+          <CityMap nodes={state.nodes || []} alerts={alerts} trigger={seqTrigger} mode={seqMode} />
           <div className="legend">
             <span><i className="lg lg-green" /> Təhlükəsiz</span>
             <span><i className="lg lg-amber" /> Şübhəli skan</span>
@@ -306,63 +323,111 @@ function ZonaBasliq({ nomre, ad, alt }) {
 
 // İnteraktiv şəhər xəritəsi (SVG). Qovşaqlar canlı vəziyyətə görə rənglənir:
 // yaşıl=təhlükəsiz, sarı=şübhəli skan, qırmızı(nəbzli)=aktiv hücum.
-function CityMap({ nodes, alerts }) {
+function CityMap({ nodes, alerts, trigger, mode }) {
   // Üzərinə gəlinən qovşaq (glassmorphism tooltip üçün).
   const [hover, setHover] = useState(null);
+  // Tam ekran rejimi.
+  const [full, setFull] = useState(false);
+  // Ardıcıl "yanma": active=animasiya gedir, step=neçə qovşaq açılıb.
+  const [seq, setSeq] = useState({ active: false, step: 0 });
 
-  // Hər qovşaq üçün mövqe (layout) və canlı status hesablanır.
-  const enriched = nodes
-    .map((n) => ({ n, lay: MAP_LAYOUT[n.id], st: deriveStatus(n, alerts) }))
-    .filter((e) => e.lay);
+  // Düymə basılanda (trigger dəyişəndə) ardıcıllığı başlat / dayandır.
+  useEffect(() => {
+    if (!trigger) return;
+    if (mode === "reset") setSeq({ active: false, step: 0 });
+    else setSeq({ active: true, step: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger]);
+
+  // Ardıcıllığı mərhələ-mərhələ irəlilət (~600ms aralıqla bir qovşaq).
+  useEffect(() => {
+    if (!seq.active) return;
+    const son = seq.step >= SEQ_ORDER.length;
+    const t = setTimeout(() => {
+      setSeq((s) => (son ? { active: false, step: SEQ_ORDER.length } : { active: true, step: s.step + 1 }));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [seq.active, seq.step]);
+
+  // Animasiya gedərkən yalnız "açılmış" qovşaqlar öz vəziyyətini göstərir.
+  const latestIdx = seq.active ? seq.step - 1 : -1;
+  const acilib = (id) => {
+    const idx = SEQ_ORDER.indexOf(id);
+    if (idx === -1 || !seq.active) return true;
+    return idx < seq.step;
+  };
 
   const hub = MAP_LAYOUT["srv-01"]; // mərkəzi server (topologiya mərkəzi)
 
+  // Hər qovşaq üçün mövqe + canlı status (+ ardıcıllıq filtrasiyası).
+  const enriched = nodes
+    .map((n) => {
+      const lay = MAP_LAYOUT[n.id];
+      let st = deriveStatus(n, alerts);
+      const gorunur = acilib(n.id);
+      if (!gorunur) st = { state: "normal", threat: null, ml: null, ip: null, time: null };
+      const flash = gorunur && SEQ_ORDER.indexOf(n.id) === latestIdx;
+      return { n, lay, st, flash };
+    })
+    .filter((e) => e.lay);
+
   return (
-    <div className="citymap-wrap">
-      <svg viewBox="0 0 460 470" className="citymap" role="img"
-           aria-label="Şəhər infrastruktur xəritəsi">
-        {/* Rayon (district) bölgələri */}
-        {DISTRICTS.map((d) => (
-          <g key={d.label}>
-            <rect className="district" x={d.x} y={d.y} width={d.w} height={d.h} rx="12" />
-            <text className="district-label" x={d.x + 10} y={d.y + 18}>{d.label}</text>
-          </g>
-        ))}
+    <div className={`citymap-wrap ${full ? "full" : ""}`}>
+      <button className="map-full-btn" onClick={() => setFull((f) => !f)}
+              title={full ? "Bağla" : "Tam ekran"}>
+        {full ? "✕" : "⛶"}
+      </button>
+      {/* "stage" tooltip-i düz SVG-nin üstünə yerləşdirmək üçün (xüsusən tam ekranda). */}
+      <div className="citymap-stage">
+        <svg viewBox="0 0 460 470" className="citymap" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Şəhər infrastruktur xəritəsi">
+          {/* Rayon (district) bölgələri */}
+          {DISTRICTS.map((d) => (
+            <g key={d.label}>
+              <rect className="district" x={d.x} y={d.y} width={d.w} height={d.h} rx="12"
+                    style={{ fill: d.tint }} />
+              <text className="district-label" x={d.x + 12} y={d.y + 20}>{d.label}</text>
+            </g>
+          ))}
 
-        {/* Topologiya xətləri: hər qovşaq → mərkəzi server */}
-        {enriched.map((e) =>
-          e.n.id === "srv-01" ? null : (
-            <line key={`l-${e.n.id}`} className={`netline ${e.st.state}`}
-                  x1={hub.x} y1={hub.y} x2={e.lay.x} y2={e.lay.y} />
-          )
-        )}
+          {/* Topologiya xətləri: hər qovşaq → mərkəzi server */}
+          {enriched.map((e) =>
+            e.n.id === "srv-01" ? null : (
+              <line key={`l-${e.n.id}`} className={`netline ${e.st.state}`}
+                    x1={hub.x} y1={hub.y} x2={e.lay.x} y2={e.lay.y} />
+            )
+          )}
 
-        {/* Qovşaq markerləri */}
-        {enriched.map((e) => (
-          <Marker key={e.n.id} e={e} onHover={setHover} />
-        ))}
-      </svg>
+          {/* Qovşaq markerləri */}
+          {enriched.map((e) => (
+            <Marker key={e.n.id} e={e} onHover={setHover} />
+          ))}
+        </svg>
 
-      {hover && <MapTooltip hover={hover} />}
+        {hover && <MapTooltip hover={hover} />}
+      </div>
     </div>
   );
 }
 
-// Xəritədəki bir qovşaq markeri.
+// Xəritədəki bir qovşaq markeri (etiket "card" şəklində fonla).
 function Marker({ e, onHover }) {
-  const { n, lay, st } = e;
+  const { n, lay, st, flash } = e;
+  const label = qisaAd(n.ad);
+  const w = label.length * 6.6 + 18; // etiket fonunun (chip) genişliyi
   return (
     <g
-      className={`mk ${st.state}`}
+      className={`mk ${st.state} ${flash ? "flash" : ""}`}
       transform={`translate(${lay.x},${lay.y})`}
       onMouseEnter={() => onHover({ ad: n.ad, type: n.type, lay, st })}
       onMouseLeave={() => onHover(null)}
     >
-      {st.state === "attack" && <circle className="mk-pulse" r="20" />}
-      <circle className="mk-halo" r="16" />
-      <circle className="mk-core" r="12" />
-      <text className="mk-ico" y="5" textAnchor="middle">{lay.ico}</text>
-      <text className="mk-label" y="32" textAnchor="middle">{qisaAd(n.ad)}</text>
+      {st.state === "attack" && <circle className="mk-pulse" r="22" />}
+      <circle className="mk-halo" r="18" />
+      <circle className="mk-core" r="13" />
+      <text className="mk-ico" y="6" textAnchor="middle">{lay.ico}</text>
+      <rect className="mk-chip" x={-w / 2} y="27" width={w} height="18" rx="6" />
+      <text className="mk-label" y="39.5" textAnchor="middle">{label}</text>
     </g>
   );
 }

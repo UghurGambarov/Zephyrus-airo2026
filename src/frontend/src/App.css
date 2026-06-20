@@ -170,7 +170,7 @@
 /* ===================== ÜÇ ZONA GRID ===================== */
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1.25fr;
+  grid-template-columns: 1.35fr 1.4fr 1.15fr;
   gap: 16px;
   margin-top: 16px;
 }
@@ -224,28 +224,86 @@
 .citymap-wrap {
   position: relative;
   width: 100%;
+  flex: 1;
+  display: flex;
+}
+.citymap-stage {
+  position: relative;
+  width: 100%;
 }
 .citymap {
   width: 100%;
   height: auto;
   display: block;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-bright);
   border-radius: 12px;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(56, 224, 216, 0.05), transparent 60%),
+    radial-gradient(120% 80% at 50% 0%, rgba(56, 224, 216, 0.06), transparent 60%),
     var(--bg-0);
 }
 
-/* Rayon (district) bölgələri */
+/* Tam ekran rejimi: xəritə bütün ekranı tutur. */
+.citymap-wrap.full {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  width: 100vw;
+  background: rgba(7, 10, 16, 0.97);
+  padding: 28px;
+  align-items: center;
+  justify-content: center;
+}
+.citymap-wrap.full .citymap-stage {
+  width: auto;
+}
+.citymap-wrap.full .citymap {
+  width: auto;
+  height: 92vh;
+  max-width: 96vw;
+}
+
+/* Tam ekran düyməsi */
+.map-full-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 7;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line-bright);
+  background: rgba(14, 22, 35, 0.85);
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.map-full-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.citymap-wrap.full .map-full-btn {
+  top: 22px;
+  right: 26px;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+/* Rayon (district) bölgələri — aydın seçilən kvadrantlar */
 .district {
-  fill: rgba(56, 224, 216, 0.025);
-  stroke: var(--line);
-  stroke-dasharray: 4 5;
+  fill: rgba(56, 224, 216, 0.04); /* fərdi tint inline style ilə gəlir */
+  stroke: var(--line-bright);
+  stroke-width: 1.4;
 }
 .district-label {
-  fill: var(--ink-faint);
+  fill: var(--ink-dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
   letter-spacing: 1.5px;
 }
 
@@ -269,41 +327,59 @@
 /* Markerlər */
 .mk {
   cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
 }
 .mk-halo {
   fill: var(--panel-2);
   stroke: var(--line-bright);
-  stroke-width: 1.5;
+  stroke-width: 1.6;
   transition: stroke 0.2s ease, stroke-width 0.2s ease;
 }
 .mk-core {
   transition: fill 0.2s ease;
 }
 .mk-ico {
-  font-size: 15px;
+  font-size: 17px;
+}
+.mk-chip {
+  fill: rgba(7, 10, 16, 0.9);
+  stroke: var(--line-bright);
+  stroke-width: 1;
+  transition: stroke 0.2s ease;
 }
 .mk-label {
-  fill: var(--ink-dim);
+  fill: #ffffff;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.3px;
-  transition: fill 0.2s ease;
 }
 .mk:hover .mk-halo {
-  stroke-width: 2.4;
-}
-.mk:hover .mk-label {
-  fill: var(--ink);
+  stroke-width: 2.6;
 }
 
-/* Vəziyyət rəngləri */
+/* Vəziyyət rəngləri (halo + nüvə + chip sərhədi) */
 .mk.normal .mk-halo { stroke: var(--green); }
-.mk.normal .mk-core { fill: rgba(61, 220, 132, 0.18); }
+.mk.normal .mk-core { fill: rgba(61, 220, 132, 0.2); }
+.mk.normal .mk-chip { stroke: rgba(61, 220, 132, 0.55); }
 .mk.scan .mk-halo { stroke: var(--amber); }
-.mk.scan .mk-core { fill: rgba(255, 179, 64, 0.22); }
+.mk.scan .mk-core { fill: rgba(255, 179, 64, 0.26); }
+.mk.scan .mk-chip { stroke: rgba(255, 179, 64, 0.7); }
 .mk.attack .mk-halo { stroke: var(--red); }
-.mk.attack .mk-core { fill: rgba(255, 77, 94, 0.3); }
-.mk.attack .mk-label { fill: var(--red); }
+.mk.attack .mk-core { fill: rgba(255, 77, 94, 0.34); }
+.mk.attack .mk-chip { stroke: var(--red); }
+
+/* Ardıcıl "yanma": qovşaq açılanda qısa parıltı (flash) */
+.mk.flash .mk-halo { animation: mkflash 0.7s ease; }
+.mk.flash .mk-core { animation: mkcoreflash 0.7s ease; }
+@keyframes mkflash {
+  0%, 100% { stroke-width: 1.6; }
+  40% { stroke-width: 5.5; }
+}
+@keyframes mkcoreflash {
+  0% { opacity: 0.35; }
+  40% { opacity: 1; }
+}
 
 /* Hücum nəbzi (genişlənən qırmızı halqa) */
 .mk-pulse {
@@ -328,9 +404,9 @@
 /* Şüşəvari (glassmorphism) tooltip */
 .map-tip {
   position: absolute;
-  z-index: 5;
-  min-width: 218px;
-  padding: 11px 13px;
+  z-index: 8;
+  min-width: 232px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: rgba(14, 22, 35, 0.72);
   backdrop-filter: blur(10px);
@@ -350,9 +426,9 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
   padding-bottom: 8px;
   margin-bottom: 7px;
   border-bottom: 1px solid var(--line);
@@ -377,15 +453,15 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11.5px;
-  padding: 2.5px 0;
+  font-size: 12.5px;
+  padding: 3px 0;
 }
 .tip-k {
-  color: var(--ink-faint);
+  color: var(--ink-dim);
 }
 .tip-v {
   font-family: var(--mono);
-  color: var(--ink);
+  color: #ffffff;
   text-align: right;
 }
 
