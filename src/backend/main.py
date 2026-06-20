@@ -40,7 +40,7 @@ def root():
     return {
         "ad": "Zephyrus City Trap",
         "status": "işləyir",
-        "mesaj": "Backend uğurla işə düşdü. Faza 1: tələlər aktivdir.",
+        "mesaj": "Backend uğurla işə düşdü. Faza 2: Sİ aşkarlama mühərriki aktivdir.",
     }
 
 

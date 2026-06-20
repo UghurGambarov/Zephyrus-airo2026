@@ -54,8 +54,9 @@ class Store:
         self._sayğac += 1
         return self._sayğac
 
-    def add_event(self, source_ip, source_kind, action, detay):
-        """Bir xam hadisəni qeyd edir və onu geri qaytarır."""
+    def add_event(self, source_ip, source_kind, action, detay, failed=False):
+        """Bir xam hadisəni qeyd edir və onu geri qaytarır.
+        failed: giriş/əməliyyat uğursuz olubsa True (ML üçün əlamətdir)."""
         with self._lock:
             indi = datetime.now()
             hadise = {
@@ -63,14 +64,20 @@ class Store:
                 "timestamp": indi.isoformat(),
                 "time": indi.strftime("%H:%M:%S"),   # ekranda göstərmək üçün
                 "source_ip": source_ip,
-                "source_kind": source_kind,          # hansı tələ/mənbə
+                "source_kind": source_kind,          # hansı tələ/cihaz/mənbə
                 "action": action,
                 "detay": detay,
+                "failed": bool(failed),              # uğursuz cəhd? (ML əlaməti)
             }
             self.events.append(hadise)
             # Uyğun node-u "vuruldu" (hit) kimi işarələ → ekranda qırmızı yanıb-sönər.
             self._mark_node_hit(source_kind, indi.strftime("%H:%M:%S"))
             return hadise
+
+    def snapshot_events(self):
+        """Bütün hadisələrin nüsxəsini verir (aşkarlama mühərriki üçün)."""
+        with self._lock:
+            return list(self.events)
 
     def add_alert(self, alert):
         """Hazır bir təhlükə siqnalını siyahıya əlavə edir."""

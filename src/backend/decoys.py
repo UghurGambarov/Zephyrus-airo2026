@@ -9,51 +9,19 @@
 # Buna görə tələ vurğusu = SIFIR yanlış-pozitiv, ƏN YÜKSƏK etibarlı siqnal
 # → risk həmişə "yüksək".
 #
-# QEYD: Faza 1-də təsnifat sadə və determinikdir (tələ növünə görə).
-# Faza 2-də əsl Sİ aşkarlama mühərriki (IsolationForest anomaliya +
-# şəhər axını üçün təsnifat) əlavə olunacaq.
+# QEYD: Təsnifat və ML anomaliya balı artıq engine.py-də (aşkarlama
+# mühərrikində) hesablanır. Bu fayl yalnız tələ cavablarını qaytarır və
+# mühərriki çağırır.
 # =====================================================================
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse
 
 from store import store
+from engine import build_alert
 
 # Bütün tələ endpoint-lərini bir yerə yığan "router".
 router = APIRouter(prefix="/decoy", tags=["decoys"])
-
-
-# ---------------------------------------------------------------------
-# Tələ növü → təhlükə təsnifatı xəritəsi (Faza 1 üçün sadə, determinik).
-# Hər tələ üçün: təhlükə sinfi, MITRE ATT&CK texnikası və qısa izah.
-# (T0846 — ATT&CK for ICS; sənaye nəzarət sistemləri üçün.)
-# ---------------------------------------------------------------------
-TELE_XERITESI = {
-    "traffic_light": {
-        "threat_class": "İcazəsiz SCADA/ICS Girişi",
-        "mitre": "T0846",  # ATT&CK for ICS — Remote System Discovery
-        "mitre_ad": "Uzaq Sistem Kəşfi (ICS)",
-        "reason": "Saxta svetofor kontrollerinə (SCADA/Modbus tələsi) icazəsiz giriş edildi.",
-    },
-    "portal": {
-        "threat_class": "Brute Force / Parol Hücumu",
-        "mitre": "T1110",  # Brute Force
-        "mitre_ad": "Brute Force",
-        "reason": "Saxta şəhər portalına giriş cəhdi edildi (parol sınağı / brute-force siqnalı).",
-    },
-    "canary": {
-        "threat_class": "Məxfi Məlumata Giriş (Canary)",
-        "mitre": "T1552",  # Unsecured Credentials
-        "mitre_ad": "Qorunmamış Etimadnamələr",
-        "reason": "Canary token faylı (saxta admin parolları) oxundu — sızma cəhdinin güclü əlaməti.",
-    },
-    "camera": {
-        "threat_class": "İcazəsiz Kamera/Cihaz Girişi",
-        "mitre": "T0846",  # ATT&CK for ICS — cihaz kəşfi/girişi
-        "mitre_ad": "Cihaz Kəşfi (ICS/IoT)",
-        "reason": "Saxta kamera axınına (RTSP/HTTP tələsi) icazəsiz giriş edildi.",
-    },
-}
 
 
 def _client_ip(request: Request) -> str:
@@ -63,30 +31,15 @@ def _client_ip(request: Request) -> str:
     return "naməlum"
 
 
-def _tele_vurgusu_qeyd_et(request: Request, kind: str, action: str, detay: str):
+def _tele_vurgusu_qeyd_et(request: Request, kind: str, action: str, detay: str, failed=False):
     """
-    Bir tələ vurulanda: (1) hadisəni qeyd edir, (2) yüksək riskli siqnal yaradır.
+    Bir tələ vurulanda: (1) hadisəni qeyd edir, (2) mühərriklə siqnal yaradır.
     Bu, bütün 4 tələ üçün ortaq köməkçi funksiyadır (təkrarı azaldır).
     """
     ip = _client_ip(request)
-    hadise = store.add_event(ip, kind, action, detay)
-
-    info = TELE_XERITESI[kind]
-    alert = {
-        "event_id": hadise["id"],
-        "timestamp": hadise["timestamp"],
-        "time": hadise["time"],
-        "source_ip": ip,
-        "source_kind": kind,
-        "is_decoy": True,                       # bu, tələ vurğusudur
-        "threat_class": info["threat_class"],
-        "mitre": info["mitre"],
-        "mitre_ad": info["mitre_ad"],
-        "risk": "yüksək",                       # tələ vurğusu → həmişə yüksək
-        "anomaly_score": None,                  # Faza 2-də ML balı əlavə olunacaq
-        "reason": info["reason"],
-        "admin_alert": "Administrator xəbərdar edildi (simulyasiya).",
-    }
+    hadise = store.add_event(ip, kind, action, detay, failed=failed)
+    # Aşkarlama mühərriki tam siqnalı qurur (ML anomaliya balı + təsnifat + MITRE).
+    alert = build_alert(hadise, store.snapshot_events(), is_decoy=True, source_kind=kind)
     store.add_alert(alert)
     return alert
 
@@ -131,10 +84,12 @@ async def portal_login(request: Request):
         except Exception:
             pass
 
+    # Portal girişi "uğursuz" sayılır (failed=True) → brute-force əlaməti.
     _tele_vurgusu_qeyd_et(
         request, "portal",
         action="POST /decoy/portal/login",
         detay=f"Portal giriş cəhdi (username='{istifadeci}')",
+        failed=True,
     )
     # Real portal kimi görünmək üçün "uğursuz giriş" cavabı qaytarırıq.
     return {"status": "error", "message": "İstifadəçi adı və ya parol yanlışdır."}
