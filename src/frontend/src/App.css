@@ -800,3 +800,175 @@
   line-height: 1.6;
   color: var(--ink);
 }
+
+/* ===================== CANLI AXIN: GƏLİŞ PARILTISI (flash) ===================== */
+/* Yeni siqnal gələndə risk rənginə görə qısa parıldayıb normal fona oturur. */
+.row.flash-high { animation: rowin 0.35s ease, fhigh 1.1s ease; }
+.row.flash-mid  { animation: rowin 0.35s ease, fmid 1.1s ease; }
+.row.flash-low  { animation: rowin 0.35s ease, flow 1.1s ease; }
+@keyframes fhigh {
+  0% { background: rgba(255, 77, 94, 0.42); box-shadow: 0 0 20px rgba(255, 77, 94, 0.5); }
+  100% { background: var(--panel-2); box-shadow: none; }
+}
+@keyframes fmid {
+  0% { background: rgba(255, 179, 64, 0.38); }
+  100% { background: var(--panel-2); }
+}
+@keyframes flow {
+  0% { background: rgba(61, 220, 132, 0.3); }
+  100% { background: var(--panel-2); }
+}
+
+/* ===================== SİMULYASİYA İDARƏ MƏRKƏZİ (modal) ===================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(4, 7, 12, 0.74);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: tipin 0.18s ease;
+}
+.modal {
+  width: min(640px, 96vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-bright);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #0e1623, #0a0f18);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 77, 94, 0.15);
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 77, 94, 0.06);
+}
+.modal-head > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 12px var(--red);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.modal-title {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #fff;
+}
+.modal-x {
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 16px;
+  cursor: pointer;
+}
+.modal-x:hover {
+  color: var(--red);
+}
+
+.phase-strip {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px 8px;
+}
+.phase {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  transition: border-color 0.3s ease, opacity 0.3s ease;
+}
+.phase-ico {
+  font-size: 16px;
+}
+.phase-ad {
+  font-size: 10.5px;
+  color: var(--ink-dim);
+  line-height: 1.3;
+}
+.phase.live {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber);
+}
+.phase.live .phase-ad {
+  color: var(--amber);
+}
+.phase.done {
+  border-color: var(--green);
+}
+.phase.done .phase-ico,
+.phase.done .phase-ad {
+  color: var(--green);
+}
+.phase.pending {
+  opacity: 0.45;
+}
+
+.term {
+  margin: 6px 18px 8px;
+  padding: 14px;
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: #05080d;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  min-height: 170px;
+}
+.term-line {
+  animation: rowin 0.25s ease;
+}
+.term-prompt {
+  color: var(--cyan);
+}
+.term-line.p1 {
+  color: #ffd9a0;
+}
+.term-cursor {
+  color: var(--cyan);
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+.foot-done {
+  color: var(--green);
+  font-size: 12px;
+}
+.foot-live {
+  color: var(--amber);
+  font-size: 12px;
+}

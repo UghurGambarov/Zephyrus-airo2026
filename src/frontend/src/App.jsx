@@ -50,6 +50,46 @@ const DISTRICTS = [
 // Əvvəlcə real cihazlarda kəşfiyyat (sarı), sonra tələlər (qırmızı) "sıçrayır".
 const SEQ_ORDER = ["tl-01", "cam-01", "mtr-01", "srv-01", "d-tl", "d-cam", "d-portal", "d-canary"];
 
+// =====================================================================
+// HÜCUMÇUNUN SƏYAHƏTİ (Feature 4 — "Simulyasiya İdarə Mərkəzi" modalı)
+// ---------------------------------------------------------------------
+// Hücum mərhələ-mərhələ, real-vaxtda danışılır. Hər sətir terminal kimi
+// bir-bir görünür və gərginlik yaradır. Bu, yalnız VİZUAL hekayədir;
+// real ML qiymətləri arxa fonda backend mühərrikindən gəlir (hibrid).
+// =====================================================================
+const STORY = [
+  {
+    ad: "Faza 1 — Kəşfiyyat (Reconnaissance)",
+    ico: "🔍",
+    lines: [
+      "🔍 Hədəf təyin edildi: 192.168.10.45 (Maliyyə Serveri)",
+      "⚡ Port skanı başladıldı...",
+      "✓ Açıq portlar tapıldı: 22 (SSH), 3389 (RDP)",
+    ],
+  },
+  {
+    ad: "Faza 2 — Brute Force",
+    ico: "🔑",
+    lines: [
+      "🔑 SSH üçün parol lüğəti ilə hücum (credential stuffing)...",
+      "❌ Cəhd 1/10: Giriş rədd edildi (yanlış etimadnamə)",
+      "❌ Cəhd 4/10: Giriş rədd edildi",
+      "❌ Cəhd 9/10: Giriş rədd edildi",
+      "🔓 Cəhd 10/10: UĞURLU! Parol qırıldı [admin:P@ssword123]",
+    ],
+  },
+  {
+    ad: "Faza 3 — Yayılma və Data Sızması",
+    ico: "🦹",
+    lines: [
+      "🦹 Giriş əldə olundu. Lokal imtiyaz yüksəldilməsi uğurlu",
+      "📂 Verilənlər bazası ehtiyatları üçün qovluqlar skan edilir...",
+      "📡 Etimadnamələr çıxarılır, sızma tunelləri hazırlanır",
+      "🛡️ TƏLƏ İŞƏ DÜŞDÜ → hərəkət aşkarlandı və bloklandı",
+    ],
+  },
+];
+
 // Real qovşağı CSV/hücum hadisəsinə bağlayan ad-prefiksləri.
 // (Tələ qovşaqları birbaşa "kind" sahəsi ilə uyğunlaşır.)
 const REAL_MATCH = {
@@ -108,6 +148,11 @@ function App() {
   // Xəritədə ardıcıl "yanma" animasiyasını başladan tetik (trigger sayğacı + rejim).
   const [seqTrigger, setSeqTrigger] = useState(0);
   const [seqMode, setSeqMode] = useState(null);
+  // Canlı axında siqnalların pilləli (staggered) görünməsi üçün:
+  // active=simulyasiya gedir, order=görünmüş siqnal id-ləri (gəlmə sırası ilə).
+  const [reveal, setReveal] = useState({ active: false, order: [] });
+  // "Simulyasiya İdarə Mərkəzi" modalı (hücum hekayəsi).
+  const [story, setStory] = useState({ open: false, phase: 0, lines: [], done: false });
 
   // --- HƏR 1 SANİYƏDƏ backend-dən vəziyyəti çəkirik (canlı yenilənmə) ---
   useEffect(() => {
@@ -144,37 +189,96 @@ function App() {
     }
   }, []);
 
-  // Düymə əməlləri.
-  // QEYD: yeni hücum/analiz hadisələri sıfırdan nömrələdiyi üçün köhnə "selectedId"
-  // səhvən başqa siqnala uyğun gələ bilər. Buna görə seçimi də sıfırlayırıq ki,
-  // hesabat paneli avtomatik olaraq ən yeni siqnalı göstərsin.
   // Xəritədəki ardıcıl animasiyanı başlat (rejim: 'attack' | 'logs' | 'reset').
   const fireSeq = (mode) => {
     setSeqMode(mode);
     setSeqTrigger((t) => t + 1);
   };
-  const hucumBaslat = () => {
+
+  // Siqnalları CANLI axında pilləli (staggered) və təsadüfi gecikmə ilə göstərir.
+  // Bu, real SIEM-də log toplanma gecikməsini (jitter) təqlid edir — siqnallar
+  // tam xronoloji yox, bir az qarışıq sırada "gəlir".
+  const scheduleReveal = (yeniSiqnallar) => {
+    const xronoloji = [...yeniSiqnallar].reverse(); // köhnədən → yeniyə
+    let sonGecikme = 0;
+    xronoloji.forEach((a, i) => {
+      const gecikme = i * 360 + Math.random() * 340; // pilləli + jitter
+      sonGecikme = Math.max(sonGecikme, gecikme);
+      setTimeout(() => {
+        setReveal((r) => (r.active ? { ...r, order: [...r.order, a.id] } : r));
+      }, gecikme);
+    });
+    // Hamısı görünəndən sonra normal rejimə qayıt.
+    setTimeout(() => setReveal((r) => ({ active: false, order: r.order })), sonGecikme + 700);
+  };
+
+  // "Simulyasiya İdarə Mərkəzi" hekayəsini mərhələ-mərhələ danışır.
+  const runStory = () => {
+    let gecikme = 350;
+    const addim = 720;
+    STORY.forEach((ph, pi) => {
+      ph.lines.forEach((ln) => {
+        setTimeout(() => {
+          setStory((s) =>
+            s.open ? { ...s, phase: pi, lines: [...s.lines, { phase: pi, text: ln }] } : s
+          );
+        }, gecikme);
+        gecikme += addim;
+      });
+      gecikme += 260; // fazalar arası qısa fasilə
+    });
+    setTimeout(() => setStory((s) => (s.open ? { ...s, done: true } : s)), gecikme);
+  };
+
+  // Düymə → backend POST → real vəziyyəti çək → pilləli göstər (+ opsional hekayə).
+  const runSimulyasiya = async (yol, opts) => {
+    setBusy(true);
     setSelectedId(null);
     setAiReport(null);
-    fireSeq("attack");
-    post("/api/simulate-attack");
+    fireSeq(opts.seqMode);
+    setReveal({ active: true, order: [] });
+    if (opts.story) setStory({ open: true, phase: 0, lines: [], done: false });
+    try {
+      await fetch(`${BACKEND}${yol}`, { method: "POST" });
+      const data = await (await fetch(`${BACKEND}/api/state`)).json();
+      setState(data);
+      setOnline(true);
+      scheduleReveal(data.alerts || []);
+      if (opts.story) runStory();
+    } catch {
+      setReveal({ active: false, order: [] });
+      setStory((s) => ({ ...s, open: false }));
+    } finally {
+      setBusy(false);
+    }
   };
-  const loglariAnaliz = () => {
-    setSelectedId(null);
-    setAiReport(null);
-    fireSeq("logs");
-    post("/api/analyze-logs");
-  };
+
+  const hucumBaslat = () => runSimulyasiya("/api/simulate-attack", { seqMode: "attack", story: true });
+  const loglariAnaliz = () => runSimulyasiya("/api/analyze-logs", { seqMode: "logs", story: false });
   const temizle = () => {
     setSelectedId(null);
     setAiReport(null);
+    setReveal({ active: false, order: [] });
+    setStory({ open: false, phase: 0, lines: [], done: false });
     fireSeq("reset");
     post("/api/reset");
   };
 
-  // Göstəriləcək siqnal: istifadəçi seçibsə o, yoxsa ən yenisi (siyahının başı).
+  // Göstəriləcək siqnallar: simulyasiya gedərkən yalnız "gəlmiş" olanlar
+  // (ən son gələn yuxarıda); əks halda bütün siqnallar (ən yeni yuxarıda).
   const alerts = state.alerts || [];
-  const selected = alerts.find((a) => a.id === selectedId) || alerts[0] || null;
+  const feedAlerts = reveal.active
+    ? reveal.order
+        .map((id) => alerts.find((a) => a.id === id))
+        .filter(Boolean)
+        .reverse()
+    : alerts;
+  const enYeniId = reveal.active && reveal.order.length ? reveal.order[reveal.order.length - 1] : null;
+  const selected =
+    alerts.find((a) => a.id === selectedId) ||
+    alerts.find((a) => a.id === enYeniId) ||
+    feedAlerts[0] ||
+    null;
 
   // Seçilmiş siqnal üçün opsional Sİ (Claude) hesabatı istə.
   const aiHesabatIste = async () => {
@@ -250,7 +354,11 @@ function App() {
 
         {/* ---------- MƏRKƏZ: CANLI SİQNALLAR ---------- */}
         <section className="zona zona-feed">
-          <ZonaBasliq nomre="02" ad="Canlı Siqnallar" alt="Ən yeni yuxarıda" />
+          <ZonaBasliq
+            nomre="02"
+            ad="Canlı Siqnallar"
+            alt={reveal.active ? "● CANLI — siqnallar axır..." : "Ən yeni yuxarıda"}
+          />
           <div className="feed-head">
             <span>VAXT</span>
             <span>MƏNBƏ</span>
@@ -260,12 +368,12 @@ function App() {
             <span>RİSK</span>
           </div>
           <div className="feed">
-            {alerts.length === 0 && (
+            {feedAlerts.length === 0 && (
               <div className="empty">
                 Hələ siqnal yoxdur. Yuxarıdan <b>🔴 Hücumu Başlat</b> düyməsinə basın.
               </div>
             )}
-            {alerts.map((a) => (
+            {feedAlerts.map((a) => (
               <AlertRow
                 key={a.id}
                 alert={a}
@@ -290,6 +398,11 @@ function App() {
           />
         </section>
       </main>
+
+      {/* Hücum hekayəsi modalı (Simulyasiya İdarə Mərkəzi) */}
+      {story.open && (
+        <StoryModal story={story} onClose={() => setStory((s) => ({ ...s, open: false }))} />
+      )}
     </div>
   );
 }
@@ -467,10 +580,16 @@ function Tip({ k, v }) {
   );
 }
 
-// Mərkəzdəki canlı siqnal sətri.
+// Risk → sətir "flash" (gəlişdə qırmızı/sarı/yaşıl parıltı) sinfi.
+const FLASH_CLASS = { yüksək: "flash-high", orta: "flash-mid", aşağı: "flash-low" };
+
+// Mərkəzdəki canlı siqnal sətri. Gələndə risk rənginə görə qısa parıldayır.
 function AlertRow({ alert, active, onClick }) {
   return (
-    <button className={`row ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`row ${active ? "active" : ""} ${FLASH_CLASS[alert.risk] || ""}`}
+      onClick={onClick}
+    >
       <span className="c-time">{alert.time}</span>
       <span className="c-src">
         {alert.source_ip}
@@ -575,6 +694,59 @@ function Block({ title, text }) {
     <div className="block">
       <h3>{title}</h3>
       <p>{text}</p>
+    </div>
+  );
+}
+
+// =====================================================================
+// SİMULYASİYA İDARƏ MƏRKƏZİ (modal) — hücumçunun səyahətini real-vaxt danışır.
+// =====================================================================
+function StoryModal({ story, onClose }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <span className="modal-dot" />
+            <span className="modal-title">SİMULYASİYA İDARƏ MƏRKƏZİ</span>
+          </div>
+          <button className="modal-x" onClick={onClose} title="Bağla">✕</button>
+        </div>
+
+        {/* Faza göstəriciləri */}
+        <div className="phase-strip">
+          {STORY.map((ph, i) => {
+            const cls = i < story.phase ? "done" : i === story.phase ? "live" : "pending";
+            return (
+              <div key={ph.ad} className={`phase ${cls}`}>
+                <span className="phase-ico">{i < story.phase ? "✓" : ph.ico}</span>
+                <span className="phase-ad">{ph.ad}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Terminal-üslublu canlı jurnal */}
+        <div className="term">
+          {story.lines.map((l, i) => (
+            <div key={i} className={`term-line p${l.phase}`}>
+              <span className="term-prompt">root@adversary:~$</span> {l.text}
+            </div>
+          ))}
+          {!story.done && <div className="term-cursor">▋</div>}
+        </div>
+
+        <div className="modal-foot">
+          {story.done ? (
+            <span className="foot-done">
+              ✓ Simulyasiya tamamlandı — texniki loglar arxa fonda "Canlı Siqnallar"-a düşdü.
+            </span>
+          ) : (
+            <span className="foot-live">● Hücum gedir... loglar real-vaxt toplanır</span>
+          )}
+          <button className="btn btn-ghost" onClick={onClose}>Bağla</button>
+        </div>
+      </div>
     </div>
   );
 }
