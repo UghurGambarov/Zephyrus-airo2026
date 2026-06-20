@@ -220,70 +220,173 @@
   color: var(--ink-faint);
 }
 
-/* ===================== SOL: ŞƏHƏR ŞƏBƏKƏSİ ===================== */
-.node-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.node {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 12px;
-  border-radius: 11px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
+/* ===================== SOL: ŞƏHƏR XƏRİTƏSİ (SVG) ===================== */
+.citymap-wrap {
   position: relative;
-  overflow: hidden;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  width: 100%;
 }
-.node-ico {
-  font-size: 18px;
+.citymap {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(56, 224, 216, 0.05), transparent 60%),
+    var(--bg-0);
 }
-.node-ad {
+
+/* Rayon (district) bölgələri */
+.district {
+  fill: rgba(56, 224, 216, 0.025);
+  stroke: var(--line);
+  stroke-dasharray: 4 5;
+}
+.district-label {
+  fill: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+
+/* Topologiya xətləri (qovşaq → mərkəzi server) */
+.netline {
+  stroke: var(--line-bright);
+  stroke-width: 1.2;
+  opacity: 0.45;
+  transition: stroke 0.25s ease, opacity 0.25s ease;
+}
+.netline.scan {
+  stroke: var(--amber);
+  opacity: 0.7;
+}
+.netline.attack {
+  stroke: var(--red);
+  stroke-width: 1.6;
+  opacity: 0.85;
+}
+
+/* Markerlər */
+.mk {
+  cursor: pointer;
+}
+.mk-halo {
+  fill: var(--panel-2);
+  stroke: var(--line-bright);
+  stroke-width: 1.5;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+.mk-core {
+  transition: fill 0.2s ease;
+}
+.mk-ico {
+  font-size: 15px;
+}
+.mk-label {
+  fill: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  transition: fill 0.2s ease;
+}
+.mk:hover .mk-halo {
+  stroke-width: 2.4;
+}
+.mk:hover .mk-label {
+  fill: var(--ink);
+}
+
+/* Vəziyyət rəngləri */
+.mk.normal .mk-halo { stroke: var(--green); }
+.mk.normal .mk-core { fill: rgba(61, 220, 132, 0.18); }
+.mk.scan .mk-halo { stroke: var(--amber); }
+.mk.scan .mk-core { fill: rgba(255, 179, 64, 0.22); }
+.mk.attack .mk-halo { stroke: var(--red); }
+.mk.attack .mk-core { fill: rgba(255, 77, 94, 0.3); }
+.mk.attack .mk-label { fill: var(--red); }
+
+/* Hücum nəbzi (genişlənən qırmızı halqa) */
+.mk-pulse {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mkpulse 1.5s ease-out infinite;
+}
+@keyframes mkpulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Şüşəvari (glassmorphism) tooltip */
+.map-tip {
+  position: absolute;
+  z-index: 5;
+  min-width: 218px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: rgba(14, 22, 35, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  animation: tipin 0.14s ease;
+}
+@keyframes tipin {
+  from {
+    opacity: 0;
+  }
+}
+.map-tip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.25;
+  padding-bottom: 8px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid var(--line);
 }
-.node-meta {
+.map-tip-head i {
+  font-style: normal;
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.8px;
-  color: var(--ink-faint);
-}
-.node.real {
-  border-left: 3px solid var(--green);
-}
-.node.real .node-ico {
-  color: var(--green);
-}
-.node.decoy {
-  border-left: 3px solid var(--ink-faint);
-}
-.node.decoy .node-ico {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
   color: var(--ink-dim);
+  border: 1px solid var(--line-bright);
 }
-/* Vurulan qovşaq: qırmızı yanıb-sönür (diqqəti çəkmək üçün). */
-.node.hit {
-  border-color: var(--red);
-  border-left: 3px solid var(--red);
-  background: linear-gradient(180deg, rgba(255, 77, 94, 0.16), var(--panel-2));
-  animation: hitflash 1.1s ease-in-out infinite;
-}
-.node.hit .node-ico,
-.node.hit .node-meta {
+.map-tip-head.attack {
   color: var(--red);
 }
-@keyframes hitflash {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--red-glow);
-  }
-  50% {
-    box-shadow: 0 0 22px 2px var(--red-glow);
-  }
+.map-tip-head.scan {
+  color: var(--amber);
+}
+.tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+  padding: 2.5px 0;
+}
+.tip-k {
+  color: var(--ink-faint);
+}
+.tip-v {
+  font-family: var(--mono);
+  color: var(--ink);
+  text-align: right;
 }
 
 .legend {
@@ -310,6 +413,9 @@
 }
 .lg-grey {
   background: var(--ink-faint);
+}
+.lg-amber {
+  background: var(--amber);
 }
 .lg-red {
   background: var(--red);
