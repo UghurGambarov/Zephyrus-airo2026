@@ -1,25 +1,78 @@
 /* =====================================================================
-   Zephyrus — qlobal üslublar (tünd "SOC konsolu" teması)
+   Zephyrus — QLOBAL ÜSLUBLAR (tünd "SOC komanda konsolu" teması)
+   ---------------------------------------------------------------------
+   Burada bütün rənglər və ölçülər TƏK YERDƏ (CSS dəyişənləri) saxlanılır.
+   Belə olanda dizaynı bir yerdən idarə etmək asandır.
+   Estetik: təhlükəsizlik əməliyyat mərkəzi (SOC) — tünd fon, terminal hissi,
+   risk səviyyəsinə görə rəng kodu (yaşıl → sarı → qırmızı).
    ===================================================================== */
 
 :root {
-  font-family: "Segoe UI", system-ui, Roboto, sans-serif;
+  /* --- Fon və səth rəngləri (tünd, dərinlikli) --- */
+  --bg-0: #070a10;          /* ən dərin fon */
+  --bg-1: #0b1019;          /* əsas fon */
+  --panel: #0e1623;         /* panel səthi */
+  --panel-2: #131d2e;       /* panel daxili kart */
+  --line: #1d2940;          /* incə sərhəd xətləri */
+  --line-bright: #2b3c5c;   /* vurğulu sərhəd */
+
+  /* --- Mətn rəngləri --- */
+  --ink: #e6edf7;           /* əsas mətn */
+  --ink-dim: #93a3bd;       /* solğun mətn */
+  --ink-faint: #5d6b85;     /* ən solğun (etiketlər) */
+
+  /* --- Marka və risk rəngləri --- */
+  --cyan: #38e0d8;          /* marka vurğusu (mavi-yaşıl) */
+  --cyan-dim: #1c7a76;
+  --green: #3ddc84;         /* risk: aşağı / real node */
+  --amber: #ffb340;         /* risk: orta */
+  --red: #ff4d5e;           /* risk: yüksək / hücum */
+  --red-glow: rgba(255, 77, 94, 0.55);
+
+  /* --- Şriftlər --- */
+  --mono: "IBM Plex Mono", "Cascadia Code", ui-monospace, monospace;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+
   color-scheme: dark;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #0b0f1a;          /* tünd fon — SOC konsolu hissi */
-  color: #e5e7eb;
   min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--sans);
+  background-color: var(--bg-1);
+  /* Atmosfer: incə şəbəkə (grid) + yuxarıda yumşaq işıq ləkəsi. */
+  background-image:
+    radial-gradient(1200px 600px at 75% -10%, rgba(56, 224, 216, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(255, 77, 94, 0.06), transparent 60%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+  background-attachment: fixed;
 }
 
 #root {
   min-height: 100vh;
 }
 
-h1,
-h2 {
-  color: #f3f4f6;
-  font-weight: 600;
+/* Sürüşdürmə zolağını tema ilə uyğunlaşdırırıq. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-bright);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyan-dim);
 }
