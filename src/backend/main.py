@@ -2,14 +2,17 @@
 # Zephyrus — "City Trap" Ağıllı Şəhər Təhlükə Aşkarlama Mühərriki
 # Backend giriş nöqtəsi (FastAPI)
 # ---------------------------------------------------------------------
-# Bu fayl serverin ƏSAS giriş nöqtəsidir. Faza 0-da yalnız serverin
-# işlədiyini yoxlamaq üçün sadə cavablar qaytarır. Növbəti fazalarda
-# bura decoy (tələ) endpoint-ləri, aşkarlama mühərriki və hesabat
-# əlavə olunacaq.
+# Bu fayl serverin ƏSAS giriş nöqtəsidir. O, hissələri bir yerə yığır:
+#   - store.py  → bütün vəziyyət (hadisələr, siqnallar, node-lar)
+#   - decoys.py → 4 tələ (decoy) endpoint-i
+# Növbəti fazalarda bura aşkarlama mühərriki, şəhər axını və hesabat gələcək.
 # =====================================================================
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from store import store
+from decoys import router as decoy_router
 
 # FastAPI tətbiqi yaradılır. "title" Swagger sənədlərində görünür.
 app = FastAPI(title="Zephyrus City Trap — Aşkarlama Mühərriki")
@@ -27,6 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 4 tələ endpoint-ini tətbiqə qoşuruq (/decoy/...).
+app.include_router(decoy_router)
+
 
 # Ən sadə yoxlama endpoint-i: server canlıdırmı?
 @app.get("/")
@@ -34,16 +40,19 @@ def root():
     return {
         "ad": "Zephyrus City Trap",
         "status": "işləyir",
-        "mesaj": "Backend uğurla işə düşdü. Faza 0 tamamlandı.",
+        "mesaj": "Backend uğurla işə düşdü. Faza 1: tələlər aktivdir.",
     }
 
 
 # Vəziyyət endpoint-i: frontend hər 1 saniyədə bunu soruşacaq.
-# Hələlik boş siyahılar qaytarır; sonrakı fazalarda real data gələcək.
+# İndi real data qaytarır: siqnallar, node-lar və statistika.
 @app.get("/api/state")
 def get_state():
-    return {
-        "alerts": [],   # aşkarlanmış təhlükə siqnalları (sonra dolacaq)
-        "nodes": [],    # şəhər şəbəkəsindəki node-lar (sonra dolacaq)
-        "stats": {"total_events": 0, "high_risk": 0},
-    }
+    return store.get_state()
+
+
+# Demo-nu təmizləmək üçün: bütün hadisə və siqnalları sıfırlayır.
+@app.post("/api/reset")
+def reset_state():
+    store.reset()
+    return {"status": "təmizləndi", "mesaj": "Bütün hadisə və siqnallar sıfırlandı."}
