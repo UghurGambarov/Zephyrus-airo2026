@@ -53,12 +53,12 @@ FastAPI, uvicorn, scikit-learn, numpy, pandas, python-multipart, React, Vite və
 ```
 run.bat
 ```
-Bu, iki pəncərə açır (Backend 8000, Frontend 5173). Sonra brauzerdə açın: **http://localhost:5173**
+Bu, iki pəncərə açır (Backend 8010, Frontend 5173). Sonra brauzerdə açın: **http://localhost:5173**
 
 **Əl ilə (iki ayrı terminal):**
 ```
 REM 1-ci terminal (backend)
-.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000 --app-dir src\backend
+.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8010 --app-dir src\backend
 
 REM 2-ci terminal (frontend)
 cd src\frontend

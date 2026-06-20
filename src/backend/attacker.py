@@ -23,7 +23,7 @@ import urllib.request
 import urllib.parse
 
 # Hədəf YALNIZ lokal serverdir (etika qaydası).
-BAZA = "http://127.0.0.1:8000"
+BAZA = "http://127.0.0.1:8010"
 
 
 def _get(yol):

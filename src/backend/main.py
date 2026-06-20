@@ -21,7 +21,7 @@ from report import ai_report
 app = FastAPI(title="Zephyrus City Trap — Aşkarlama Mühərriki")
 
 # ---------------------------------------------------------------------
-# CORS icazəsi: frontend (Vite, 5173 portunda) backend-ə (8000 portu)
+# CORS icazəsi: frontend (Vite, 5173 portunda) backend-ə (8010 portu)
 # müraciət edə bilsin deyə bütün mənbələrə icazə veririk.
 # Bu, yalnız lokal demo üçündür — real məhsulda məhdudlaşdırılmalıdır.
 # ---------------------------------------------------------------------
@@ -43,7 +43,7 @@ def root():
     return {
         "ad": "Zephyrus City Trap",
         "status": "işləyir",
-        "mesaj": "Backend uğurla işə düşdü. Faza 4: hücum simulyatoru hazırdır.",
+        "mesaj": "Backend uğurla işə düşdü. Tam sistem hazırdır (port 8010).",
     }
 
 

@@ -14,7 +14,7 @@ import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 
 // Backend serverin lokal ünvanı.
-const BACKEND = "http://127.0.0.1:8000";
+const BACKEND = "http://127.0.0.1:8010";
 
 // Risk səviyyəsini CSS sinfinə çevirən köməkçi (rəng kodu üçün).
 const RISK_CLASS = { yüksək: "risk-high", orta: "risk-mid", aşağı: "risk-low" };
