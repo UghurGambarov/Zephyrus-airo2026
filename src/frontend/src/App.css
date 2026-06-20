@@ -1,0 +1,50 @@
+/* =====================================================================
+   Zephyrus — "City Trap" panel üslubu (CSS)
+   Faza 0: sadə, tünd "SOC konsolu" görünüşü.
+   ===================================================================== */
+
+.faza0 {
+  max-width: 720px;
+  margin: 60px auto;
+  padding: 0 20px;
+  text-align: center;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.faza0 h1 {
+  font-size: 2.2rem;
+  margin-bottom: 6px;
+}
+
+.faza0 .alt {
+  color: #9fb3c8;
+  margin-top: 0;
+}
+
+.card {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 28px 0;
+}
+
+.card h2 {
+  margin-top: 0;
+  color: #e5e7eb;
+}
+
+.ok {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.err {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.qeyd {
+  color: #6b7280;
+  font-size: 0.9rem;
+}

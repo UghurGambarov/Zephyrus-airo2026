@@ -1,0 +1,13 @@
+# Zephyrus — Backend asılılıqları (Python paketləri)
+# Bu fayl bütün istifadə olunan açıq mənbə kitabxanaları açıqlayır (qaydaların tələbi).
+
+fastapi==0.115.6        # Veb API serveri (aşkarlama mühərriki üçün)
+uvicorn==0.34.0         # FastAPI-ni işə salan ASGI server
+scikit-learn==1.6.1     # Maşın öyrənməsi — IsolationForest anomaliya modeli
+numpy==2.2.1            # Ədədi hesablamalar (scikit-learn üçün lazımdır)
+pandas==2.2.3           # CSV log fayllarını oxumaq və analiz etmək üçün
+python-multipart==0.0.20 # FastAPI form məlumatları (decoy login üçün)
+
+# QEYD: Aşağıdakı paket YALNIZ opsional LLM hesabatı üçündür.
+# İnternet və ya API açarı olmadan da sistem tam işləyir (şablon hesabat istifadə olunur).
+anthropic==0.43.0       # Opsional — Claude LLM ilə Azərbaycanca hesabat (offline-safe)

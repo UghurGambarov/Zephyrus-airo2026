@@ -1,0 +1,25 @@
+/* =====================================================================
+   Zephyrus — qlobal üslublar (tünd "SOC konsolu" teması)
+   ===================================================================== */
+
+:root {
+  font-family: "Segoe UI", system-ui, Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #0b0f1a;          /* tünd fon — SOC konsolu hissi */
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2 {
+  color: #f3f4f6;
+  font-weight: 600;
+}
