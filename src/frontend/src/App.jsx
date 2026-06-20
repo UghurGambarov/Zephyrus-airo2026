@@ -2,8 +2,9 @@
 // Zephyrus — "City Trap" SOC İDARƏ PANELİ (Faza 5)
 // ---------------------------------------------------------------------
 // Üç zonalı təhlükəsizlik əməliyyat mərkəzi (SOC) konsolu:
-//   SOL    → "Şəhər Şəbəkəsi": ~8 qovşaq (real=yaşıl, tələ=boz, vurulan=qırmızı).
-//   MƏRKƏZ → "Canlı Siqnallar": ən yeni yuxarıda; risk rəng-kodlu axın.
+//   SOL    → "Şəhər Şəbəkəsi": real şəhər (yollar+bloklar+parklar) üzərində
+//            ~14 IoT cihazı (real=yaşıl, şübhəli=sarı, vurulan=qırmızı).
+//   MƏRKƏZ → "Canlı Siqnallar": səhifələnmiş hadisə jurnalı; risk rəng-kodlu.
 //   SAĞ    → "İnsident Hesabatı": seçilmiş siqnalın Azərbaycanca hesabatı.
 //
 // Yuxarıdakı "🔴 Hücumu Başlat" düyməsi bütün aşkarlama zəncirini canlı işə salır.
@@ -12,7 +13,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import "./App.css";
-import { convert, FORMATS, SAMPLES } from "./logConverter";
+import { convert, FORMATS } from "./logConverter";
 
 // Backend serverin lokal ünvanı.
 const BACKEND = "http://127.0.0.1:8010";
@@ -21,35 +22,62 @@ const BACKEND = "http://127.0.0.1:8010";
 const RISK_CLASS = { yüksək: "risk-high", orta: "risk-mid", aşağı: "risk-low" };
 
 // =====================================================================
-// ŞƏHƏR XƏRİTƏSİ ÜÇÜN KONFİQURASİYA (Feature 3 — interaktiv SVG xəritə)
+// ŞƏHƏR XƏRİTƏSİ ÜÇÜN KONFİQURASİYA (Feature 3 — interaktiv SVG şəhər)
 // ---------------------------------------------------------------------
-// Hər qovşağın xəritədəki MÖVQEYİ, ikonu, rayonu və idarə etdiyi cihaz
-// sayı. Mövqelər viewBox "0 0 460 470" daxilindədir.
+// Xəritə artıq REAL kiçik şəhər kimi qurulub: yol şəbəkəsi (küçələr +
+// kəsişmələr), ~14 bina bloku/məhəlləsi və 2 park. IoT cihazları binaların
+// İÇİNDƏ yox, REALİSTİK yerlərdə durur: kəsişmələrdə svetofor/trafik
+// sensoru, bank yanında bankomat, yollarda kamera, parklarda hava sensoru.
+// Bütün koordinatlar viewBox "0 0 640 580" daxilindədir.
 // =====================================================================
-const MAP_LAYOUT = {
-  "srv-01":   { x: 232, y: 235, ico: "🖥", rayon: "Data Mərkəzi",   cihaz: 142 },
-  "cam-01":   { x: 104, y: 92,  ico: "📹", rayon: "Hökumət Rayonu", cihaz: 56 },
-  "d-cam":    { x: 178, y: 150, ico: "📹", rayon: "Hökumət Rayonu", cihaz: 0 },
-  "d-portal": { x: 352, y: 98,  ico: "🏛", rayon: "Bank Sektoru",    cihaz: 0 },
-  "tl-01":    { x: 92,  y: 360, ico: "🚦", rayon: "Sənaye Zonası",   cihaz: 88 },
-  "d-tl":     { x: 165, y: 308, ico: "🚦", rayon: "Sənaye Zonası",   cihaz: 0 },
-  "mtr-01":   { x: 150, y: 416, ico: "💧", rayon: "Sənaye Zonası",   cihaz: 74 },
-  "d-canary": { x: 356, y: 372, ico: "🔑", rayon: "Data Mərkəzi",    cihaz: 0 },
-};
 
-// Xəritədəki rayon (district) bölgələri — fon dördbucaqları + etiket.
-// Hər rayona fərqli incə rəng çaları (tint) verilir ki, dörd kvadrant
-// bir-birindən aydın seçilsin.
-const DISTRICTS = [
-  { x: 16, y: 26, w: 200, h: 178, label: "HÖKUMƏT RAYONU", tint: "rgba(56,224,216,0.07)" },
-  { x: 252, y: 26, w: 192, h: 178, label: "BANK SEKTORU", tint: "rgba(255,179,64,0.07)" },
-  { x: 16, y: 252, w: 200, h: 200, label: "SƏNAYE ZONASI", tint: "rgba(61,220,132,0.07)" },
-  { x: 252, y: 252, w: 192, h: 200, label: "DATA MƏRKƏZİ", tint: "rgba(170,120,255,0.08)" },
+// Yol şəbəkəsi — şaquli və üfüqi küçələrin mərkəz xətləri (kəsişmələr formalaşır).
+const ROADS_V = [150, 320, 490];
+const ROADS_H = [160, 310, 455];
+const ROAD_W = 28; // küçə eni
+
+// Bina blokları (məhəllələr). t = tip (rəng çaları üçün).
+const BUILDINGS = [
+  { x: 28,  y: 28,  w: 108, h: 118, label: "HÖKUMƏT",      t: "gov" },
+  { x: 164, y: 28,  w: 142, h: 118, label: "BƏLƏDİYYƏ",    t: "gov" },
+  { x: 334, y: 28,  w: 142, h: 118, label: "BANK MƏRKƏZİ", t: "bank" },
+  { x: 504, y: 28,  w: 108, h: 118, label: "TİCARƏT M.",   t: "bank" },
+  { x: 28,  y: 174, w: 108, h: 122, label: "YAŞAYIŞ",      t: "res" },
+  { x: 334, y: 174, w: 142, h: 122, label: "OFİS QÜLLƏSİ", t: "office" },
+  { x: 504, y: 174, w: 108, h: 122, label: "BANK FİLİALI", t: "bank" },
+  { x: 28,  y: 324, w: 108, h: 117, label: "XƏSTƏXANA",    t: "health" },
+  { x: 164, y: 324, w: 142, h: 117, label: "MƏKTƏB",       t: "edu" },
+  { x: 504, y: 324, w: 108, h: 117, label: "DATA MƏRKƏZİ", t: "data" },
+  { x: 28,  y: 469, w: 108, h: 87,  label: "SƏNAYE",       t: "industry" },
+  { x: 164, y: 469, w: 142, h: 87,  label: "ANBAR",        t: "industry" },
+  { x: 334, y: 469, w: 142, h: 87,  label: "SU STANSİYASI",t: "industry" },
+  { x: 504, y: 469, w: 108, h: 87,  label: "ENERGETİKA",   t: "industry" },
 ];
 
-// Hücum/analiz zamanı qovşaqların ARDICIL "yanma" sırası (mərhələ-mərhələ).
-// Əvvəlcə real cihazlarda kəşfiyyat (sarı), sonra tələlər (qırmızı) "sıçrayır".
-const SEQ_ORDER = ["tl-01", "cam-01", "mtr-01", "srv-01", "d-tl", "d-cam", "d-portal", "d-canary"];
+// Yaşıl sahələr (parklar) — ağac nöqtələri ilə.
+const PARKS = [
+  { x: 164, y: 174, w: 142, h: 122, label: "MƏRKƏZİ PARK", trees: [[200, 215], [240, 250], [275, 210]] },
+  { x: 334, y: 324, w: 142, h: 117, label: "MEYDAN PARKI", trees: [[368, 360], [410, 400], [445, 358]] },
+];
+
+// Hər qovşağın xəritədəki MÖVQEYİ (küçə/kəsişmə/park), ikonu, rayonu və
+// idarə etdiyi cihaz sayı.
+const MAP_LAYOUT = {
+  "srv-01":  { x: 558, y: 382, ico: "🖥", rayon: "Data Mərkəzi",   cihaz: 142 },
+  "tl-01":   { x: 150, y: 160, ico: "🚦", rayon: "Mərkəz kəsişməsi", cihaz: 24 },
+  "ts-01":   { x: 320, y: 160, ico: "📡", rayon: "Bank kəsişməsi",   cihaz: 18 },
+  "cam-01":  { x: 490, y: 235, ico: "📹", rayon: "Şərq bulvarı",     cihaz: 36 },
+  "atm-01":  { x: 442, y: 160, ico: "🏧", rayon: "Bank Mərkəzi",     cihaz: 1 },
+  "atm-02":  { x: 490, y: 310, ico: "🏧", rayon: "Bank Filialı",     cihaz: 1 },
+  "env-01":  { x: 235, y: 235, ico: "🌿", rayon: "Mərkəzi Park",     cihaz: 12 },
+  "env-02":  { x: 405, y: 382, ico: "🌿", rayon: "Meydan Parkı",     cihaz: 12 },
+  "mtr-01":  { x: 320, y: 455, ico: "💧", rayon: "Su Stansiyası",    cihaz: 74 },
+  "d-cam":   { x: 150, y: 310, ico: "📹", rayon: "Qərb bulvarı",     cihaz: 0 },
+  "d-tl":    { x: 490, y: 455, ico: "🚦", rayon: "Cənub kəsişməsi",  cihaz: 0 },
+  "d-atm":   { x: 368, y: 310, ico: "🏧", rayon: "Meydan",          cihaz: 0 },
+  "d-portal":{ x: 150, y: 455, ico: "🏛", rayon: "Xidmət qapısı",    cihaz: 0 },
+  "d-canary":{ x: 558, y: 455, ico: "🔑", rayon: "Data Mərkəzi",     cihaz: 0 },
+};
 
 // =====================================================================
 // HÜCUMÇUNUN SƏYAHƏTİ (Feature 4 — "Simulyasiya İdarə Mərkəzi" modalı)
@@ -95,9 +123,14 @@ const STORY = [
 // (Tələ qovşaqları birbaşa "kind" sahəsi ilə uyğunlaşır.)
 const REAL_MATCH = {
   "tl-01":  ["Svetofor"],
+  "ts-01":  ["TrafikSensoru", "Sensor"],
   "cam-01": ["Kamera"],
-  "mtr-01": ["SuSayğacı", "Su"],
-  "srv-01": ["SCADA", "ŞəhərPortalı", "İşıqlandırma"],
+  "atm-01": ["Bankomat-1"],
+  "atm-02": ["Bankomat-2"],
+  "env-01": ["Hava"],
+  "env-02": ["Park"],
+  "mtr-01": ["Su"],
+  "srv-01": ["Data", "SCADA", "Server"],
 };
 
 // Vəziyyət → Azərbaycanca status mətni (tooltip üçün).
@@ -109,7 +142,7 @@ const STATE_TEXT = {
 
 // Bir qovşağın CANLI vəziyyətini siqnallardan çıxarır (yaşıl/sarı/qırmızı).
 // alerts onsuz da ən yenidən köhnəyə doğru sıralanıb (backend reversed).
-function deriveStatus(node, alerts) {
+function deriveStatus(node, alerts, ignoreHit = false) {
   const match = alerts.find((a) => {
     if (node.type === "decoy") return a.source_kind === node.kind;
     const prefs = REAL_MATCH[node.id] || [];
@@ -127,7 +160,9 @@ function deriveStatus(node, alerts) {
     };
   }
   // Siqnal tapılmasa, amma backend node-u "vuruldu" kimi işarələyibsə → hücum.
-  if (node.status === "hit") {
+  // (Canlı axın gedərkən ignoreHit=true olur ki, cihaz yalnız ÖZ siqnalı
+  //  ekrana "axanda" yansın — backend polling onu vaxtından əvvəl yandırmasın.)
+  if (!ignoreHit && node.status === "hit") {
     return { state: "attack", threat: "Tələ vuruldu", ml: null, ip: null, time: node.last_hit };
   }
   return { state: "normal", threat: null, ml: null, ip: null, time: null };
@@ -146,12 +181,12 @@ function App() {
   const [busy, setBusy] = useState(false);              // düymə əməliyyatı gedir?
   const [aiReport, setAiReport] = useState(null);       // opsional Sİ hesabatı
   const [aiLoading, setAiLoading] = useState(false);
-  // Xəritədə ardıcıl "yanma" animasiyasını başladan tetik (trigger sayğacı + rejim).
-  const [seqTrigger, setSeqTrigger] = useState(0);
-  const [seqMode, setSeqMode] = useState(null);
   // Canlı axında siqnalların pilləli (staggered) görünməsi üçün:
   // active=simulyasiya gedir, order=görünmüş siqnal id-ləri (gəlmə sırası ilə).
   const [reveal, setReveal] = useState({ active: false, order: [] });
+  // Canlı Siqnallar üçün səhifələmə (event log): səhifə ölçüsü + cari səhifə.
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(0);
   // "Simulyasiya İdarə Mərkəzi" modalı (hücum hekayəsi).
   const [story, setStory] = useState({ open: false, phase: 0, lines: [], done: false });
   // "Log Analiz Mərkəzi" modalı (real fayl yükləmə + çevirici).
@@ -192,27 +227,27 @@ function App() {
     }
   }, []);
 
-  // Xəritədəki ardıcıl animasiyanı başlat (rejim: 'attack' | 'logs' | 'reset').
-  const fireSeq = (mode) => {
-    setSeqMode(mode);
-    setSeqTrigger((t) => t + 1);
-  };
-
-  // Siqnalları CANLI axında pilləli (staggered) və təsadüfi gecikmə ilə göstərir.
-  // Bu, real SIEM-də log toplanma gecikməsini (jitter) təqlid edir — siqnallar
-  // tam xronoloji yox, bir az qarışıq sırada "gəlir".
+  // Siqnalları CANLI axında pilləli (staggered) və QEYRİ-BƏRABƏR (irregular)
+  // gecikmə ilə göstərir. Hücum ~15 saniyəyə yayılır; aralıqlar təsadüfidir
+  // (bəzən sürətli partlayış, bəzən qısa fasilə) → real SOC axını kimi görünür.
+  // Hər addımda yalnız BİR cihaz "yanır", hamısı eyni anda yox.
+  const TOPLAM_MUDDET = 14500; // ms — hücum axınının təxmini ümumi müddəti
   const scheduleReveal = (yeniSiqnallar) => {
     const xronoloji = [...yeniSiqnallar].reverse(); // köhnədən → yeniyə
-    let sonGecikme = 0;
-    xronoloji.forEach((a, i) => {
-      const gecikme = i * 360 + Math.random() * 340; // pilləli + jitter
-      sonGecikme = Math.max(sonGecikme, gecikme);
+    const n = xronoloji.length || 1;
+    const ortaAralig = TOPLAM_MUDDET / n;
+    let t = 500; // ilk siqnala qədər qısa gözləmə
+    let sonGecikme = t;
+    xronoloji.forEach((a) => {
       setTimeout(() => {
         setReveal((r) => (r.active ? { ...r, order: [...r.order, a.id] } : r));
-      }, gecikme);
+      }, t);
+      sonGecikme = t;
+      // Növbəti aralıq: orta aralığın 0.45x–1.7x-i (qeyri-bərabər ritm).
+      t += ortaAralig * (0.45 + Math.random() * 1.25);
     });
     // Hamısı görünəndən sonra normal rejimə qayıt.
-    setTimeout(() => setReveal((r) => ({ active: false, order: r.order })), sonGecikme + 700);
+    setTimeout(() => setReveal((r) => ({ active: false, order: r.order })), sonGecikme + 900);
   };
 
   // "Simulyasiya İdarə Mərkəzi" hekayəsini mərhələ-mərhələ danışır.
@@ -238,7 +273,7 @@ function App() {
     setBusy(true);
     setSelectedId(null);
     setAiReport(null);
-    fireSeq(opts.seqMode);
+    setPage(0);
     setReveal({ active: true, order: [] });
     if (opts.story) setStory({ open: true, phase: 0, lines: [], done: false });
     try {
@@ -256,8 +291,8 @@ function App() {
     }
   };
 
-  const hucumBaslat = () => runSimulyasiya("/api/simulate-attack", { seqMode: "attack", story: true });
-  const loglariAnaliz = () => runSimulyasiya("/api/analyze-logs", { seqMode: "logs", story: false });
+  const hucumBaslat = () => runSimulyasiya("/api/simulate-attack", { story: true });
+  const loglariAnaliz = () => runSimulyasiya("/api/analyze-logs", { story: false });
 
   // Log Analiz Mərkəzindən gələn (çevrilmiş) sətirləri ML mühərrikinə göndərir.
   const analyzeUploadedRows = async (rows) => {
@@ -265,7 +300,7 @@ function App() {
     setSelectedId(null);
     setAiReport(null);
     setLogCenter(false);
-    fireSeq("logs");
+    setPage(0);
     setReveal({ active: true, order: [] });
     try {
       await fetch(`${BACKEND}/api/analyze-upload`, {
@@ -286,10 +321,17 @@ function App() {
   const temizle = () => {
     setSelectedId(null);
     setAiReport(null);
+    setPage(0);
     setReveal({ active: false, order: [] });
     setStory({ open: false, phase: 0, lines: [], done: false });
-    fireSeq("reset");
     post("/api/reset");
+  };
+
+  // "Daxili nümunə CSV" → modalı bağla, sonra daxili nümunəni analiz et
+  // (davranış "ML Mühərrikinə Göndər" ilə eyni: modal qapanır + axın başlayır).
+  const numuneCSV = () => {
+    setLogCenter(false);
+    loglariAnaliz();
   };
 
   // Göstəriləcək siqnallar: simulyasiya gedərkən yalnız "gəlmiş" olanlar
@@ -307,6 +349,17 @@ function App() {
     alerts.find((a) => a.id === enYeniId) ||
     feedAlerts[0] ||
     null;
+
+  // --- Səhifələmə (event log) ---
+  // Canlı axın gedərkən səhifələmə dayanır (hamısı axır); bitəndən sonra
+  // istifadəçi köhnə hadisələri Əvvəlki/Sonrakı ilə gəzə bilir.
+  const toplamSehife = Math.max(1, Math.ceil(feedAlerts.length / pageSize));
+  const cariSehife = reveal.active ? 0 : Math.min(page, toplamSehife - 1);
+  const sehifeAlerts = reveal.active
+    ? feedAlerts
+    : feedAlerts.slice(cariSehife * pageSize, cariSehife * pageSize + pageSize);
+  const ilkNo = feedAlerts.length === 0 ? 0 : cariSehife * pageSize + 1;
+  const sonNo = Math.min((cariSehife + 1) * pageSize, feedAlerts.length);
 
   // Seçilmiş siqnal üçün opsional Sİ (Claude) hesabatı istə.
   const aiHesabatIste = async () => {
@@ -368,7 +421,12 @@ function App() {
         {/* ---------- SOL: ŞƏHƏR ŞƏBƏKƏSİ (interaktiv SVG xəritə) ---------- */}
         <section className="zona zona-net">
           <ZonaBasliq nomre="01" ad="Şəhər Şəbəkəsi" alt="Canlı infrastruktur xəritəsi" />
-          <CityMap nodes={state.nodes || []} alerts={alerts} trigger={seqTrigger} mode={seqMode} />
+          <CityMap
+            nodes={state.nodes || []}
+            alerts={reveal.active ? feedAlerts : alerts}
+            revealing={reveal.active}
+            flashId={enYeniId}
+          />
           <div className="legend">
             <span><i className="lg lg-green" /> Təhlükəsiz</span>
             <span><i className="lg lg-amber" /> Şübhəli skan</span>
@@ -401,7 +459,7 @@ function App() {
                 Hələ siqnal yoxdur. Yuxarıdan <b>🔴 Hücumu Başlat</b> düyməsinə basın.
               </div>
             )}
-            {feedAlerts.map((a) => (
+            {sehifeAlerts.map((a) => (
               <AlertRow
                 key={a.id}
                 alert={a}
@@ -413,6 +471,46 @@ function App() {
               />
             ))}
           </div>
+
+          {/* Səhifələmə paneli (canlı axın gedərkən gizlədilir) */}
+          {!reveal.active && feedAlerts.length > 0 && (
+            <div className="pager">
+              <div className="pager-size">
+                <span>Səhifədə:</span>
+                {[5, 10, 15].map((n) => (
+                  <button
+                    key={n}
+                    className={`pg-size ${pageSize === n ? "on" : ""}`}
+                    onClick={() => {
+                      setPageSize(n);
+                      setPage(0);
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div className="pager-nav">
+                <button
+                  className="pg-btn"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={cariSehife <= 0}
+                >
+                  ‹ Əvvəlki
+                </button>
+                <span className="pg-info">
+                  {ilkNo}–{sonNo} / {feedAlerts.length}
+                </span>
+                <button
+                  className="pg-btn"
+                  onClick={() => setPage((p) => Math.min(toplamSehife - 1, p + 1))}
+                  disabled={cariSehife >= toplamSehife - 1}
+                >
+                  Sonrakı ›
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ---------- SAĞ: İNSİDENT HESABATI ---------- */}
@@ -420,6 +518,8 @@ function App() {
           <ZonaBasliq nomre="03" ad="İnsident Hesabatı" alt="Sİ hazırlayır · insan təsdiqləyir" />
           <ReportPanel
             alert={selected}
+            alerts={alerts}
+            stats={stats}
             aiReport={aiReport}
             aiLoading={aiLoading}
             onAi={aiHesabatIste}
@@ -437,7 +537,7 @@ function App() {
         <LogCenterModal
           onClose={() => setLogCenter(false)}
           onAnalyze={analyzeUploadedRows}
-          onSample={loglariAnaliz}
+          onSample={numuneCSV}
           busy={busy}
         />
       )}
@@ -472,52 +572,33 @@ function ZonaBasliq({ nomre, ad, alt }) {
   );
 }
 
-// İnteraktiv şəhər xəritəsi (SVG). Qovşaqlar canlı vəziyyətə görə rənglənir:
-// yaşıl=təhlükəsiz, sarı=şübhəli skan, qırmızı(nəbzli)=aktiv hücum.
-function CityMap({ nodes, alerts, trigger, mode }) {
+// Bir qovşağın verilmiş siqnala uyğun gəlib-gəlmədiyini yoxlayır (flash üçün).
+function nodeMatchesAlert(n, a) {
+  if (!a) return false;
+  if (n.type === "decoy") return a.source_kind === n.kind;
+  const prefs = REAL_MATCH[n.id] || [];
+  return prefs.some((p) => (a.source_kind || "").startsWith(p));
+}
+
+// İnteraktiv ŞƏHƏR xəritəsi (SVG). Yol şəbəkəsi + bina blokları + parklar üstündə
+// IoT cihazları canlı vəziyyətə görə rənglənir: yaşıl=təhlükəsiz, sarı=şübhəli
+// skan, qırmızı(nəbzli)=aktiv hücum. Cihaz öz siqnalı ekrana "axanda" yanır.
+function CityMap({ nodes, alerts, revealing, flashId }) {
   // Üzərinə gəlinən qovşaq (glassmorphism tooltip üçün).
   const [hover, setHover] = useState(null);
   // Tam ekran rejimi.
   const [full, setFull] = useState(false);
-  // Ardıcıl "yanma": active=animasiya gedir, step=neçə qovşaq açılıb.
-  const [seq, setSeq] = useState({ active: false, step: 0 });
 
-  // Düymə basılanda (trigger dəyişəndə) ardıcıllığı başlat / dayandır.
-  useEffect(() => {
-    if (!trigger) return;
-    if (mode === "reset") setSeq({ active: false, step: 0 });
-    else setSeq({ active: true, step: 0 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trigger]);
+  const hub = MAP_LAYOUT["srv-01"]; // Data Mərkəzi (şəbəkə mərkəzi)
+  const flashAlert = flashId ? alerts.find((a) => a.id === flashId) : null;
 
-  // Ardıcıllığı mərhələ-mərhələ irəlilət (~600ms aralıqla bir qovşaq).
-  useEffect(() => {
-    if (!seq.active) return;
-    const son = seq.step >= SEQ_ORDER.length;
-    const t = setTimeout(() => {
-      setSeq((s) => (son ? { active: false, step: SEQ_ORDER.length } : { active: true, step: s.step + 1 }));
-    }, 600);
-    return () => clearTimeout(t);
-  }, [seq.active, seq.step]);
-
-  // Animasiya gedərkən yalnız "açılmış" qovşaqlar öz vəziyyətini göstərir.
-  const latestIdx = seq.active ? seq.step - 1 : -1;
-  const acilib = (id) => {
-    const idx = SEQ_ORDER.indexOf(id);
-    if (idx === -1 || !seq.active) return true;
-    return idx < seq.step;
-  };
-
-  const hub = MAP_LAYOUT["srv-01"]; // mərkəzi server (topologiya mərkəzi)
-
-  // Hər qovşaq üçün mövqe + canlı status (+ ardıcıllıq filtrasiyası).
+  // Hər qovşaq üçün mövqe + canlı status. Canlı axında polling "hit"-i nəzərə
+  // alınmır (ignoreHit), beləcə cihaz yalnız öz siqnalı axanda yanır.
   const enriched = nodes
     .map((n) => {
       const lay = MAP_LAYOUT[n.id];
-      let st = deriveStatus(n, alerts);
-      const gorunur = acilib(n.id);
-      if (!gorunur) st = { state: "normal", threat: null, ml: null, ip: null, time: null };
-      const flash = gorunur && SEQ_ORDER.indexOf(n.id) === latestIdx;
+      const st = deriveStatus(n, alerts, revealing);
+      const flash = revealing && nodeMatchesAlert(n, flashAlert);
       return { n, lay, st, flash };
     })
     .filter((e) => e.lay);
@@ -530,18 +611,49 @@ function CityMap({ nodes, alerts, trigger, mode }) {
       </button>
       {/* "stage" tooltip-i düz SVG-nin üstünə yerləşdirmək üçün (xüsusən tam ekranda). */}
       <div className="citymap-stage">
-        <svg viewBox="0 0 460 470" className="citymap" preserveAspectRatio="xMidYMid meet"
-             role="img" aria-label="Şəhər infrastruktur xəritəsi">
-          {/* Rayon (district) bölgələri */}
-          {DISTRICTS.map((d) => (
-            <g key={d.label}>
-              <rect className="district" x={d.x} y={d.y} width={d.w} height={d.h} rx="12"
-                    style={{ fill: d.tint }} />
-              <text className="district-label" x={d.x + 12} y={d.y + 20}>{d.label}</text>
+        <svg viewBox="0 0 640 580" className="citymap" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Ağıllı şəhər infrastruktur xəritəsi">
+          {/* --- Yol şəbəkəsi (küçələr + kəsişmələr) --- */}
+          <g className="roads">
+            {ROADS_H.map((y) => (
+              <g key={`rh-${y}`}>
+                <rect className="road" x="14" y={y - ROAD_W / 2} width="612" height={ROAD_W} />
+                <line className="road-dash" x1="20" y1={y} x2="620" y2={y} />
+              </g>
+            ))}
+            {ROADS_V.map((x) => (
+              <g key={`rv-${x}`}>
+                <rect className="road" x={x - ROAD_W / 2} y="14" width={ROAD_W} height="552" />
+                <line className="road-dash" x1={x} y1="20" x2={x} y2="560" />
+              </g>
+            ))}
+          </g>
+
+          {/* --- Bina blokları (məhəllələr) --- */}
+          {BUILDINGS.map((b) => (
+            <g key={b.label} className={`bld bld-${b.t}`}>
+              <rect className="bld-base" x={b.x} y={b.y} width={b.w} height={b.h} rx="5" />
+              <rect className="bld-roof" x={b.x + 5} y={b.y + 5} width={b.w - 10} height="14" rx="3" />
+              <text className="bld-label" x={b.x + b.w / 2} y={b.y + b.h - 9} textAnchor="middle">
+                {b.label}
+              </text>
             </g>
           ))}
 
-          {/* Topologiya xətləri: hər qovşaq → mərkəzi server */}
+          {/* --- Parklar (yaşıl sahələr + ağaclar) --- */}
+          {PARKS.map((p) => (
+            <g key={p.label} className="park">
+              <rect className="park-base" x={p.x} y={p.y} width={p.w} height={p.h} rx="8" />
+              {p.trees.map(([tx, ty], i) => (
+                <circle key={i} className="tree" cx={tx} cy={ty} r="7" />
+              ))}
+              <text className="park-label" x={p.x + p.w / 2} y={p.y + p.h - 8} textAnchor="middle">
+                {p.label}
+              </text>
+            </g>
+          ))}
+
+          {/* --- Şəbəkə əlaqələri: hər cihaz → Data Mərkəzi (incə) --- */}
           {enriched.map((e) =>
             e.n.id === "srv-01" ? null : (
               <line key={`l-${e.n.id}`} className={`netline ${e.st.state}`}
@@ -549,7 +661,7 @@ function CityMap({ nodes, alerts, trigger, mode }) {
             )
           )}
 
-          {/* Qovşaq markerləri */}
+          {/* --- IoT cihaz markerləri --- */}
           {enriched.map((e) => (
             <Marker key={e.n.id} e={e} onHover={setHover} />
           ))}
@@ -586,10 +698,10 @@ function Marker({ e, onHover }) {
 // Üzərinə gələndə açılan şüşəvari (glassmorphism) məlumat qutusu.
 function MapTooltip({ hover }) {
   const { ad, type, lay, st } = hover;
-  // Faizlə mövqe (viewBox 460x470). Yuxarı sıradakılar üçün tooltip aşağı açılır.
-  const left = `${(lay.x / 460) * 100}%`;
-  const top = `${(lay.y / 470) * 100}%`;
-  const below = lay.y < 180;
+  // Faizlə mövqe (viewBox 640x580). Yuxarı sıradakılar üçün tooltip aşağı açılır.
+  const left = `${(lay.x / 640) * 100}%`;
+  const top = `${(lay.y / 580) * 100}%`;
+  const below = lay.y < 200;
   const transform = below ? "translate(-50%, 20px)" : "translate(-50%, calc(-100% - 18px))";
   const cihazLabel = st.state === "attack" ? "Təsirlənmiş cihaz" : "İdarə olunan cihaz";
 
@@ -646,8 +758,27 @@ function AlertRow({ alert, active, onClick }) {
   );
 }
 
+// İnsident üçün ədədi statistika (KPI) hesablayır.
+function hesablaStats(alerts, stats) {
+  const list = alerts || [];
+  const decoy = list.filter((a) => a.is_decoy).length;
+  const yuksek = list.filter((a) => a.risk === "yüksək").length;
+  const cihazlar = new Set(list.map((a) => a.source_kind).filter(Boolean));
+  const ortaBal = list.length
+    ? Math.round(list.reduce((s, a) => s + (a.anomaly_score || 0), 0) / list.length)
+    : 0;
+  return {
+    hadise: stats?.total_events ?? list.length,
+    siqnal: stats?.total_alerts ?? list.length,
+    yuksek: stats?.high_risk ?? yuksek,
+    tele: decoy,
+    cihaz: cihazlar.size,
+    ortaBal,
+  };
+}
+
 // Sağ paneldəki insident hesabatı.
-function ReportPanel({ alert, aiReport, aiLoading, onAi }) {
+function ReportPanel({ alert, alerts, stats, aiReport, aiLoading, onAi }) {
   if (!alert) {
     return (
       <div className="report-empty">
@@ -657,6 +788,7 @@ function ReportPanel({ alert, aiReport, aiLoading, onAi }) {
     );
   }
   const rep = alert.report || {};
+  const m = hesablaStats(alerts, stats);
   return (
     <div className="report">
       <div className="report-top">
@@ -667,6 +799,16 @@ function ReportPanel({ alert, aiReport, aiLoading, onAi }) {
         <div className="report-mitre">
           {alert.mitre} · {alert.mitre_ad}
         </div>
+      </div>
+
+      {/* İnsidentin ədədi göstəriciləri (statistika) */}
+      <div className="rep-stats">
+        <Metric value={m.hadise} label="HADİSƏ" />
+        <Metric value={m.siqnal} label="SİQNAL" />
+        <Metric value={m.yuksek} label="YÜKSƏK RİSK" tone="red" />
+        <Metric value={m.tele} label="TƏLƏ VURĞUSU" tone="red" />
+        <Metric value={m.cihaz} label="HƏDƏF CİHAZ" />
+        <Metric value={`${m.ortaBal}`} label="ORTA ML BALI" tone="cyan" />
       </div>
 
       {/* Əsas faktlar cədvəli */}
@@ -723,6 +865,16 @@ function Row({ k, v }) {
     <div className="kv-row">
       <span className="kv-k">{k}</span>
       <span className="kv-v">{v}</span>
+    </div>
+  );
+}
+
+// İnsident hesabatındakı ədədi göstərici kartı (KPI).
+function Metric({ value, label, tone }) {
+  return (
+    <div className={`metric ${tone ? `metric-${tone}` : ""}`}>
+      <span className="metric-value">{value}</span>
+      <span className="metric-label">{label}</span>
     </div>
   );
 }
@@ -811,11 +963,6 @@ function LogCenterModal({ onClose, onAnalyze, onSample, busy }) {
   };
 
   const doConvert = () => setResult(convert(format, raw));
-  const numuneDoldur = () => {
-    setRaw(SAMPLES[format]);
-    setFileName(`numune-${format}.log`);
-    setResult(null);
-  };
 
   const f = FORMATS[format];
   const rows = result && !result.xeta ? result.rows : [];
@@ -859,7 +1006,9 @@ function LogCenterModal({ onClose, onAnalyze, onSample, busy }) {
               <input type="file" accept=".log,.txt,.json,.csv,.cef" onChange={onFile} />
               <span>{fileName || "Fayl seç (.log .json .cef .txt)"}</span>
             </label>
-            <button className="btn btn-ghost" onClick={numuneDoldur}>Nümunə doldur</button>
+            <button className="btn btn-ghost" onClick={doConvert} disabled={!raw.trim()}>
+              🔄 Çevir
+            </button>
           </div>
           <p className="lc-hint">📌 {f.izah}</p>
 
@@ -886,9 +1035,6 @@ function LogCenterModal({ onClose, onAnalyze, onSample, busy }) {
 
           {/* Əməllər */}
           <div className="lc-actions">
-            <button className="btn btn-ghost" onClick={doConvert} disabled={!raw.trim()}>
-              🔄 Çevir
-            </button>
             <button
               className="btn btn-attack"
               onClick={() => onAnalyze(rows)}

@@ -124,6 +124,11 @@ TELE_XERITESI = {
         "mitre": "T0846", "mitre_ad": "Cihaz Kəşfi (ICS/IoT)",
         "reason": "Saxta kamera axınına (RTSP/HTTP tələsi) icazəsiz giriş edildi.",
     },
+    "atm": {
+        "threat_class": "Bankomat Manipulyasiyası (Jackpotting)",
+        "mitre": "T1496", "mitre_ad": "Resurs Mənimsəmə / Fiziki Manipulyasiya",
+        "reason": "Saxta bankomata icazəsiz əmr göndərildi (nağd çıxarma / zərərli firmware) — maliyyə hücumunun güclü əlaməti.",
+    },
 }
 
 

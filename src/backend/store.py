@@ -22,15 +22,22 @@ from threading import Lock
 # ---------------------------------------------------------------------
 def _ilkin_nodes():
     return [
-        {"id": "srv-01",   "ad": "Mərkəzi Server",        "type": "real",  "kind": None,            "status": "normal", "last_hit": None},
-        {"id": "tl-01",    "ad": "Svetofor Kontrolleri",  "type": "real",  "kind": None,            "status": "normal", "last_hit": None},
-        {"id": "cam-01",   "ad": "Nəzarət Kamerası",      "type": "real",  "kind": None,            "status": "normal", "last_hit": None},
-        {"id": "mtr-01",   "ad": "Su Sayğacı Şəbəkəsi",   "type": "real",  "kind": None,            "status": "normal", "last_hit": None},
-        # --- 4 TƏLƏ (decoy) ---
+        # --- REAL ağıllı-şəhər IoT qurğuları (küçələrdə, kəsişmələrdə, parklarda) ---
+        {"id": "srv-01",  "ad": "Data Mərkəzi",     "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "tl-01",   "ad": "Svetofor #1",      "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "ts-01",   "ad": "Trafik Sensoru",   "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "cam-01",  "ad": "Yol Kamerası",     "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "atm-01",  "ad": "Bankomat #1",      "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "atm-02",  "ad": "Bankomat #2",      "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "env-01",  "ad": "Hava Sensoru",     "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "env-02",  "ad": "Park Sensoru",     "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        {"id": "mtr-01",  "ad": "Su Sayğacı",       "type": "real",  "kind": None, "status": "normal", "last_hit": None},
+        # --- 5 TƏLƏ (decoy) — küçə/bank yaxınlığında yerləşdirilib ---
+        {"id": "d-cam",    "ad": "Saxta Kamera (tələ)",   "type": "decoy", "kind": "camera",        "status": "normal", "last_hit": None},
         {"id": "d-tl",     "ad": "Saxta Svetofor (tələ)", "type": "decoy", "kind": "traffic_light", "status": "normal", "last_hit": None},
+        {"id": "d-atm",    "ad": "Saxta Bankomat (tələ)", "type": "decoy", "kind": "atm",           "status": "normal", "last_hit": None},
         {"id": "d-portal", "ad": "Saxta Şəhər Portalı",   "type": "decoy", "kind": "portal",        "status": "normal", "last_hit": None},
         {"id": "d-canary", "ad": "Canary Token Faylı",    "type": "decoy", "kind": "canary",        "status": "normal", "last_hit": None},
-        {"id": "d-cam",    "ad": "Saxta Kamera (tələ)",   "type": "decoy", "kind": "camera",        "status": "normal", "last_hit": None},
     ]
 
 

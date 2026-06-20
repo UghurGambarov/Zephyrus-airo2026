@@ -48,6 +48,9 @@ def _tovsiyeler(alert) -> list:
     if "Canary" in sinif or "Məxfi" in sinif:
         addimlar.append("Canary oxundu — bu, məlumat sızması cəhdinin GÜCLÜ əlamətidir. Bütün admin etimadnamələrini rotasiya et (dəyiş).")
         addimlar.append("Cinayət-texniki (forensic) təhlil üçün loqları və yaddaş şəkillərini saxla.")
+    if "Bankomat" in sinif or "Jackpotting" in sinif:
+        addimlar.append("Yaxınlıqdakı REAL bankomatları (Bankomat #1/#2) dərhal xidmətdən çıxar və fiziki yoxlamadan keçir.")
+        addimlar.append("Bank prosessinq şəbəkəsini izolyasiya et, kart əməliyyatlarını monitorinqə götür və maliyyə təhlükəsizliyi qrupunu xəbərdar et.")
     if "Kəşfiyyat" in sinif or "Skan" in sinif:
         addimlar.append("Firewall qaydalarını sərtləşdir və bu IP-dən gələn skan trafikini izlə.")
 

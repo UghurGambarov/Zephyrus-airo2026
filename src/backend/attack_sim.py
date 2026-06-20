@@ -18,33 +18,46 @@
 #   4) Data sızma cəhdi → canary token (saxta admin parolları) oxunur
 # =====================================================================
 
+import random
+import threading
+import time
+
 from store import store
 from engine import build_alert
 
 # Uydurma hücumçu IP-si (real deyil).
 HUCUMCU_IP = "45.142.120.50"
 
+# --- Hücum axını üçün vaxt ayarları ---
+# Addımlar arası TƏSADÜFİ qısa fasilə (saniyə). Belə olanda hücum bir anda yox,
+# QISA ZAMAN DİLİMİNDƏ müxtəlif zamanlarda baş verir → dashboard-da canlı axır.
+FASILE_MIN = 0.4
+FASILE_MAX = 1.1
+
 # Hücum ardıcıllığı. Hər addım:
 #   (source_kind, action, detay, is_decoy, failed)
 # source_kind tələ növü olanda (traffic_light/portal/canary/camera) uyğun
 # tələ node-u ekranda qırmızı yanır.
 HUCUM_ADDIMLARI = [
-    # 1) Kəşfiyyat skanı — real cihazlara sürətli probe (tələ deyil).
-    ("Svetofor-Mərkəz-1", "PROBE", "Şəbəkə skanı: Svetofor-Mərkəz-1 yoxlanılır", False, True),
-    ("Kamera-Park-1",     "PROBE", "Şəbəkə skanı: Kamera-Park-1 yoxlanılır",     False, True),
-    ("SuSayğacı-Rayon-3", "PROBE", "Şəbəkə skanı: SuSayğacı-Rayon-3 yoxlanılır", False, True),
-    ("SCADA-Nəzarət",     "PROBE", "Şəbəkə skanı: SCADA-Nəzarət yoxlanılır",     False, True),
-    # 2) Tələlərə düşmə — saxta svetofor və kamera.
-    ("traffic_light", "GET /decoy/traffic-light", "Saxta svetofor kontrollerinə giriş", True, False),
-    ("camera",        "GET /decoy/camera/stream", "Saxta kamera axınına giriş",         True, False),
-    # 3) Brute-force — saxta portala 5 təkrar uğursuz giriş.
-    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #1 (admin)",     True, True),
-    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #2 (root)",      True, True),
-    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #3 (admin123)",  True, True),
-    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #4 (P@ssw0rd)",  True, True),
-    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #5 (12345678)",  True, True),
-    # 4) Data sızma cəhdi — canary token oxunur.
-    ("canary", "GET /decoy/canary/admin_credentials.txt", "Canary token oxundu (saxta admin parolları)", True, False),
+    # 1) Kəşfiyyat — hər cihaz kateqoriyası üçün FƏRQLİ, realistik skan növü.
+    #    (Bütün cihazlar eyni anda yox; axın mərhələ-mərhələ irəliləyir.)
+    ("Svetofor-Mərkəz",  "PROBE", "ICS/Modbus port skanı: Svetofor #1 yoxlanılır",       False, True),
+    ("TrafikSensoru-1",  "PROBE", "Trafik sensoru şəbəkə kəşfiyyatı (intersection)",      False, True),
+    ("Kamera-Yol-1",     "PROBE", "RTSP/ONVIF port yoxlanışı: Yol Kamerası",              False, True),
+    ("Bankomat-1",       "PROBE", "Bankomat şəbəkəsinə kəşfiyyat skanı (#1)",             False, True),
+    ("Su-Sayğacı",       "PROBE", "SCADA/Modbus skanı: Su Sayğacı stansiyası",            False, True),
+    ("Data-Mərkəz",      "PROBE", "Data Mərkəzi xidmət kəşfi (service/port scan)",        False, True),
+    # 2) İstismar — saxta cihazlara FƏRQLİ növ hücumlar (kateqoriyaya uyğun).
+    ("camera",        "GET /decoy/camera/stream",       "Saxta kamera axınına icazəsiz giriş — RTSP hijack",        True, False),
+    ("traffic_light", "POST /decoy/traffic-light/modbus","Saxta svetofora icazəsiz Modbus əmri — siqnal manipulyasiyası", True, False),
+    ("atm",           "POST /decoy/atm/dispense",       "Saxta bankomatda 'jackpotting' (nağd çıxarma) cəhdi",      True, True),
+    # 3) Brute-force — saxta portala təkrar uğursuz giriş.
+    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #1 (admin)",    True, True),
+    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #2 (root)",     True, True),
+    ("portal", "POST /decoy/portal/login", "Portal brute-force cəhdi #3 (P@ssw0rd)", True, True),
+    # 4) Eskalasiya — bankomata zərərli firmware + canary token sızması.
+    ("atm",    "POST /decoy/atm/firmware",                "Saxta bankomata zərərli firmware yükləmə cəhdi",     True, True),
+    ("canary", "GET /decoy/canary/admin_credentials.txt", "Canary token oxundu (saxta admin parolları)",        True, False),
 ]
 
 

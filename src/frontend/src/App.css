@@ -293,35 +293,79 @@
   font-size: 18px;
 }
 
-/* Rayon (district) bölgələri — aydın seçilən kvadrantlar */
-.district {
-  fill: rgba(56, 224, 216, 0.04); /* fərdi tint inline style ilə gəlir */
-  stroke: var(--line-bright);
-  stroke-width: 1.4;
+/* --- Yol şəbəkəsi (küçələr) --- */
+.road {
+  fill: #11151d;
+  stroke: #20283a;
+  stroke-width: 1;
 }
-.district-label {
-  fill: var(--ink-dim);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+.road-dash {
+  stroke: #facc4e;
+  stroke-width: 1.4;
+  stroke-dasharray: 8 9;
+  opacity: 0.35;
 }
 
-/* Topologiya xətləri (qovşaq → mərkəzi server) */
-.netline {
+/* --- Bina blokları (məhəllələr) --- */
+.bld-base {
   stroke: var(--line-bright);
   stroke-width: 1.2;
-  opacity: 0.45;
+}
+.bld-roof {
+  fill: rgba(255, 255, 255, 0.06);
+}
+.bld-label {
+  fill: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+/* Məhəllə tiplərinə görə incə rəng çaları */
+.bld-gov .bld-base      { fill: rgba(56, 224, 216, 0.10); }
+.bld-bank .bld-base     { fill: rgba(255, 179, 64, 0.11); }
+.bld-res .bld-base      { fill: rgba(147, 163, 189, 0.10); }
+.bld-office .bld-base   { fill: rgba(120, 160, 255, 0.10); }
+.bld-health .bld-base   { fill: rgba(255, 120, 150, 0.09); }
+.bld-edu .bld-base      { fill: rgba(180, 140, 255, 0.10); }
+.bld-data .bld-base     { fill: rgba(170, 120, 255, 0.14); }
+.bld-industry .bld-base { fill: rgba(93, 107, 133, 0.12); }
+
+/* --- Parklar (yaşıl sahələr) --- */
+.park-base {
+  fill: rgba(61, 220, 132, 0.12);
+  stroke: rgba(61, 220, 132, 0.4);
+  stroke-width: 1.2;
+}
+.tree {
+  fill: rgba(61, 220, 132, 0.5);
+  stroke: rgba(61, 220, 132, 0.8);
+  stroke-width: 1;
+}
+.park-label {
+  fill: rgba(61, 220, 132, 0.85);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+/* Şəbəkə əlaqələri (cihaz → Data Mərkəzi) — incə, dağıtmasın deyə zəif */
+.netline {
+  stroke: var(--line-bright);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.25;
   transition: stroke 0.25s ease, opacity 0.25s ease;
 }
 .netline.scan {
   stroke: var(--amber);
-  opacity: 0.7;
+  opacity: 0.55;
 }
 .netline.attack {
   stroke: var(--red);
-  stroke-width: 1.6;
-  opacity: 0.85;
+  stroke-width: 1.4;
+  opacity: 0.7;
 }
 
 /* Markerlər */
@@ -629,11 +673,10 @@
   border-radius: 6px;
   text-transform: uppercase;
 }
+/* Risk göstəriciləri — STATİK rənglər (animasiya yoxdur, peşəkar görünüş). */
 .risk-high {
   color: #fff;
   background: linear-gradient(180deg, #e23a4b, #b51f30);
-  box-shadow: 0 0 14px rgba(255, 77, 94, 0.4);
-  animation: pulse 1.5s ease-in-out infinite;
 }
 .risk-mid {
   color: #1a1206;
@@ -1122,4 +1165,111 @@
 }
 .lc-table .st-ok {
   color: var(--green);
+}
+
+/* ===================== CANLI SİQNALLAR: SƏHİFƏLƏMƏ (event log) ===================== */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.pager-size,
+.pager-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pager-size > span {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: var(--ink-faint);
+  margin-right: 2px;
+}
+.pg-size {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  min-width: 30px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--line-bright);
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.pg-size:hover {
+  border-color: var(--cyan-dim);
+}
+.pg-size.on {
+  border-color: var(--cyan);
+  color: var(--bg-0);
+  background: var(--cyan);
+  font-weight: 700;
+}
+.pg-btn {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 6px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--line-bright);
+  background: var(--panel-2);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.pg-btn:hover:not(:disabled) {
+  border-color: var(--cyan);
+}
+.pg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pg-info {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  min-width: 72px;
+  text-align: center;
+}
+
+/* ===================== İNSİDENT HESABATI: ƏDƏDİ GÖSTƏRİCİLƏR (KPI) ===================== */
+.rep-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.metric-value {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+.metric-label {
+  font-size: 8.5px;
+  letter-spacing: 0.8px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+.metric-red .metric-value {
+  color: var(--red);
+}
+.metric-cyan .metric-value {
+  color: var(--cyan);
 }
