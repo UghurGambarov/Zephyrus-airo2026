@@ -1,13 +1,17 @@
 # Zephyrus — Backend asılılıqları (Python paketləri)
-# Bu fayl bütün istifadə olunan açıq mənbə kitabxanaları açıqlayır (qaydaların tələbi).
+# Bu fayl sistemin işi üçün istifadə olunan bütün açıq mənbə kitabxanaları açıqlayır
+# (qaydaların tələbi). Versiyalar sabitlənib ki, demo təkrarlana bilsin.
 
-fastapi==0.115.6        # Veb API serveri (aşkarlama mühərriki üçün)
-uvicorn==0.34.0         # FastAPI-ni işə salan ASGI server
-scikit-learn==1.6.1     # Maşın öyrənməsi — IsolationForest anomaliya modeli
-numpy==2.2.1            # Ədədi hesablamalar (scikit-learn üçün lazımdır)
-pandas==2.2.3           # CSV log fayllarını oxumaq və analiz etmək üçün
-python-multipart==0.0.20 # FastAPI form məlumatları (decoy login üçün)
+# --- Sistemin işləməsi üçün ƏSAS asılılıqlar ---
+fastapi==0.115.6         # Veb API serveri (aşkarlama mühərriki üçün)
+uvicorn==0.34.0          # FastAPI-ni işə salan ASGI server
+scikit-learn==1.6.1      # Maşın öyrənməsi — IsolationForest anomaliya modeli
+numpy==2.2.1             # Ədədi hesablamalar (scikit-learn üçün lazımdır)
+python-multipart==0.0.20 # Saxta portal tələsində form məlumatını oxumaq üçün (request.form())
 
-# QEYD: Aşağıdakı paket YALNIZ opsional LLM hesabatı üçündür.
-# İnternet və ya API açarı olmadan da sistem tam işləyir (şablon hesabat istifadə olunur).
-anthropic==0.43.0       # Opsional — Claude LLM ilə Azərbaycanca hesabat (offline-safe)
+# QEYD: CSV log faylları Python-un daxili `csv` modulu ilə oxunur — əlavə
+# kitabxana (məs. pandas) tələb olunmur.
+
+# --- OPSİONAL asılılıqlar (sistemin işləməsi üçün lazım DEYİL) ---
+anthropic==0.43.0        # Opsional — Claude LLM ilə Azərbaycanca hesabat (offline-safe; açar yoxdursa şablon işləyir)
+matplotlib==3.11.0       # Yalnız SƏNƏD üçün — memarlıq diaqramını (docs/architecture-diagram.png) yaradan skript (docs/gen_architecture_diagram.py)
