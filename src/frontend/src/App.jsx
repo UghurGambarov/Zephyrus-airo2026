@@ -12,6 +12,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import "./App.css";
+import { convert, FORMATS, SAMPLES } from "./logConverter";
 
 // Backend serverin lokal ünvanı.
 const BACKEND = "http://127.0.0.1:8010";
@@ -153,6 +154,8 @@ function App() {
   const [reveal, setReveal] = useState({ active: false, order: [] });
   // "Simulyasiya İdarə Mərkəzi" modalı (hücum hekayəsi).
   const [story, setStory] = useState({ open: false, phase: 0, lines: [], done: false });
+  // "Log Analiz Mərkəzi" modalı (real fayl yükləmə + çevirici).
+  const [logCenter, setLogCenter] = useState(false);
 
   // --- HƏR 1 SANİYƏDƏ backend-dən vəziyyəti çəkirik (canlı yenilənmə) ---
   useEffect(() => {
@@ -255,6 +258,31 @@ function App() {
 
   const hucumBaslat = () => runSimulyasiya("/api/simulate-attack", { seqMode: "attack", story: true });
   const loglariAnaliz = () => runSimulyasiya("/api/analyze-logs", { seqMode: "logs", story: false });
+
+  // Log Analiz Mərkəzindən gələn (çevrilmiş) sətirləri ML mühərrikinə göndərir.
+  const analyzeUploadedRows = async (rows) => {
+    setBusy(true);
+    setSelectedId(null);
+    setAiReport(null);
+    setLogCenter(false);
+    fireSeq("logs");
+    setReveal({ active: true, order: [] });
+    try {
+      await fetch(`${BACKEND}/api/analyze-upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows, reset: true }),
+      });
+      const data = await (await fetch(`${BACKEND}/api/state`)).json();
+      setState(data);
+      setOnline(true);
+      scheduleReveal(data.alerts || []);
+    } catch {
+      setReveal({ active: false, order: [] });
+    } finally {
+      setBusy(false);
+    }
+  };
   const temizle = () => {
     setSelectedId(null);
     setAiReport(null);
@@ -326,8 +354,8 @@ function App() {
           <button className="btn btn-attack" onClick={hucumBaslat} disabled={busy}>
             🔴 Hücumu Başlat
           </button>
-          <button className="btn btn-ghost" onClick={loglariAnaliz} disabled={busy}>
-            📄 Logları Analiz Et
+          <button className="btn btn-ghost" onClick={() => setLogCenter(true)} disabled={busy}>
+            📂 Log Analiz Mərkəzi
           </button>
           <button className="btn btn-ghost" onClick={temizle} disabled={busy}>
             ↻ Təmizlə
@@ -402,6 +430,16 @@ function App() {
       {/* Hücum hekayəsi modalı (Simulyasiya İdarə Mərkəzi) */}
       {story.open && (
         <StoryModal story={story} onClose={() => setStory((s) => ({ ...s, open: false }))} />
+      )}
+
+      {/* Log Analiz Mərkəzi modalı (real fayl yükləmə + çevirici) */}
+      {logCenter && (
+        <LogCenterModal
+          onClose={() => setLogCenter(false)}
+          onAnalyze={analyzeUploadedRows}
+          onSample={loglariAnaliz}
+          busy={busy}
+        />
       )}
     </div>
   );
@@ -745,6 +783,155 @@ function StoryModal({ story, onClose }) {
             <span className="foot-live">● Hücum gedir... loglar real-vaxt toplanır</span>
           )}
           <button className="btn btn-ghost" onClick={onClose}>Bağla</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// LOG ANALİZ MƏRKƏZİ (modal) — real fayl yükləmə + Syslog/Windows/CEF çevirici.
+// =====================================================================
+function LogCenterModal({ onClose, onAnalyze, onSample, busy }) {
+  const [format, setFormat] = useState("syslog");
+  const [fileName, setFileName] = useState("");
+  const [raw, setRaw] = useState("");
+  const [result, setResult] = useState(null); // { rows, mapping } və ya { xeta }
+
+  const onFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRaw(String(reader.result || ""));
+      setResult(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const doConvert = () => setResult(convert(format, raw));
+  const numuneDoldur = () => {
+    setRaw(SAMPLES[format]);
+    setFileName(`numune-${format}.log`);
+    setResult(null);
+  };
+
+  const f = FORMATS[format];
+  const rows = result && !result.xeta ? result.rows : [];
+  const PIS = ["FAILED", "DENIED", "ERROR", "BLOCKED", "UNAUTHORIZED"];
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <span className="lc-ico">📂</span>
+            <span className="modal-title">LOG ANALİZ MƏRKƏZİ</span>
+          </div>
+          <button className="modal-x" onClick={onClose} title="Bağla">✕</button>
+        </div>
+
+        <div className="lc-body">
+          <p className="lc-intro">
+            Tarixi / forenzik loglarınızı yükləyin. <b>Çevirici</b> onları avtomatik
+            platformamızın formatına çevirir, sonra <b>ML mühərriki</b> hər sətrə canlı
+            risk balı verir. (Canlı təlim/demo üçün isə yuxarıda <b>🔴 Hücumu Başlat</b>.)
+          </p>
+
+          {/* Format + fayl seçimi */}
+          <div className="lc-controls">
+            <label className="lc-field">
+              <span>Mənbə format</span>
+              <select
+                value={format}
+                onChange={(e) => {
+                  setFormat(e.target.value);
+                  setResult(null);
+                }}
+              >
+                {Object.entries(FORMATS).map(([k, v]) => (
+                  <option key={k} value={k}>{v.ad}</option>
+                ))}
+              </select>
+            </label>
+            <label className="lc-file">
+              <input type="file" accept=".log,.txt,.json,.csv,.cef" onChange={onFile} />
+              <span>{fileName || "Fayl seç (.log .json .cef .txt)"}</span>
+            </label>
+            <button className="btn btn-ghost" onClick={numuneDoldur}>Nümunə doldur</button>
+          </div>
+          <p className="lc-hint">📌 {f.izah}</p>
+
+          {/* Xam log mətni */}
+          <textarea
+            className="lc-raw"
+            value={raw}
+            onChange={(e) => {
+              setRaw(e.target.value);
+              setResult(null);
+            }}
+            placeholder="Xam log məzmunu burada görünəcək (və ya birbaşa yapışdırın)..."
+          />
+
+          {/* Avtomatik sahə xəritələməsi */}
+          <div className="lc-map">
+            <span className="lc-map-t">Avtomatik sahə xəritələməsi:</span>
+            {f.mapping.map(([from, to]) => (
+              <span key={from} className="lc-pair">
+                <i>{from}</i> → <b>{to}</b>
+              </span>
+            ))}
+          </div>
+
+          {/* Əməllər */}
+          <div className="lc-actions">
+            <button className="btn btn-ghost" onClick={doConvert} disabled={!raw.trim()}>
+              🔄 Çevir
+            </button>
+            <button
+              className="btn btn-attack"
+              onClick={() => onAnalyze(rows)}
+              disabled={!rows.length || busy}
+            >
+              🧠 ML Mühərrikinə Göndər{rows.length ? ` (${rows.length})` : ""}
+            </button>
+            <button className="btn btn-ghost" onClick={onSample} disabled={busy}>
+              Daxili nümunə CSV
+            </button>
+          </div>
+
+          {/* Çevrilmiş nəticə önizləmə */}
+          {result &&
+            (result.xeta ? (
+              <p className="lc-err">⚠ {result.xeta}</p>
+            ) : (
+              <div className="lc-preview">
+                <div className="lc-prev-head">
+                  ✓ {rows.length} sətir çevrildi — ilk {Math.min(5, rows.length)} önizləmə:
+                </div>
+                <table className="lc-table">
+                  <thead>
+                    <tr>
+                      <th>timestamp</th><th>source_ip</th><th>device</th><th>action</th><th>status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0, 5).map((r, i) => (
+                      <tr key={i}>
+                        <td>{(r.timestamp || "").replace("T", " ").slice(0, 19)}</td>
+                        <td>{r.source_ip}</td>
+                        <td>{r.device}</td>
+                        <td>{r.action}</td>
+                        <td className={PIS.includes((r.status || "").toUpperCase()) ? "st-bad" : "st-ok"}>
+                          {r.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
         </div>
       </div>
     </div>

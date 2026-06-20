@@ -11,9 +11,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from typing import List, Dict, Any
+
+from pydantic import BaseModel
+
 from store import store
 from decoys import router as decoy_router
-from log_analyzer import analyze_csv
+from log_analyzer import analyze_csv, analyze_rows
 from attack_sim import simulate_attack
 from report import ai_report
 
@@ -59,6 +63,21 @@ def get_state():
 @app.post("/api/analyze-logs")
 def analyze_logs(reset: bool = True):
     return analyze_csv(reset_first=reset)
+
+
+# Yüklənmiş və frontend-də "native" formata çevrilmiş logları analiz edir.
+# Body: {"rows": [{timestamp, source_ip, device, action, status}, ...], "reset": true}
+# (Log Analiz Mərkəzi → Syslog/Windows/CEF çevirici bu endpoint-i çağırır.)
+class UploadPayload(BaseModel):
+    rows: List[Dict[str, Any]] = []
+    reset: bool = True
+
+
+@app.post("/api/analyze-upload")
+def analyze_upload(payload: UploadPayload):
+    if not payload.rows:
+        return {"xeta": "Heç bir sətir göndərilmədi."}
+    return analyze_rows(payload.rows, reset_first=payload.reset)
 
 
 # Hücum simulyasiyasını işə salır (dashboard "🔴 Hücumu Başlat" düyməsi).
