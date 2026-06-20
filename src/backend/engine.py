@@ -193,7 +193,8 @@ def classify_stream(info, bal):
         threat_class, mitre, mitre_ad = "Brute Force / Parol Hücumu", "T1110", "Brute Force"
     elif info["is_kenari"]:
         threat_class, mitre, mitre_ad = "İcazəsiz Giriş", "T1078", "Etibarlı Hesablardan Sui-istifadə"
-    elif bal >= 60:
+    elif bal >= 50:
+        # Qaydaya uyğun gəlməyən, lakin ML-in anomal saydığı davranış.
         threat_class, mitre, mitre_ad = "Anomal Davranış", "T1595", "Aktiv Skanlama"
     else:
         threat_class, mitre, mitre_ad = "Normal Fəaliyyət", "-", "-"

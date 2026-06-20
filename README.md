@@ -63,7 +63,12 @@ npm run dev
 Paneli görmək üçün **giriş (login) tələb olunmur** — dashboard birbaşa açılır. (Saxta portal tələsi isə qəsdən hər parolu "qəbul edir" ki, brute-force cəhdlərini qeydə alsın — bu, real giriş deyil, tələdir.)
 
 ## Nümunə data
-[`data/sample-data.csv`](data/sample-data.csv) — ağıllı şəhər giriş loglarının nümunəsi (normal + şübhəli trafik qarışığı). Mühərrik bu faylı da analiz edir. (Faza 3-də doldurulur.)
+[`data/sample-data.csv`](data/sample-data.csv) — ağıllı şəhər giriş loglarının nümunəsi (73 sətir; sütunlar: `timestamp, source_ip, device, action, status`). Normal trafik + 3 şübhəli nümunə qarışdırılıb:
+- **Kəşfiyyat skanı** — bir kənar IP gecə qısa müddətdə 8 fərqli cihaza müraciət edir.
+- **Brute-force** — portala qısa müddətdə 9 uğursuz giriş cəhdi.
+- **Gecə icazəsiz girişi** — gecə saatında həssas SCADA cihazına giriş.
+
+Data [`src/backend/gen_sample_data.py`](src/backend/gen_sample_data.py) ilə təkrarlana bilən şəkildə yaradılır. Mühərrik bu faylı da analiz edir: `POST /api/analyze-logs` (hər log sətri eyni Sİ mühərrikindən keçir; yalnız şübhəli olanlar siqnal kimi panelə çıxır).
 
 ## Məhdudiyyətlər
 - Bu, **MVP (minimum işlək məhsul)** prototipidir, real istehsalat sistemi deyil.

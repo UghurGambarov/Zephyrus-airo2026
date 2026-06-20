@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from store import store
 from decoys import router as decoy_router
+from log_analyzer import analyze_csv
 
 # FastAPI tətbiqi yaradılır. "title" Swagger sənədlərində görünür.
 app = FastAPI(title="Zephyrus City Trap — Aşkarlama Mühərriki")
@@ -40,7 +41,7 @@ def root():
     return {
         "ad": "Zephyrus City Trap",
         "status": "işləyir",
-        "mesaj": "Backend uğurla işə düşdü. Faza 2: Sİ aşkarlama mühərriki aktivdir.",
+        "mesaj": "Backend uğurla işə düşdü. Faza 3: şəhər log axını analiz olunur.",
     }
 
 
@@ -49,6 +50,13 @@ def root():
 @app.get("/api/state")
 def get_state():
     return store.get_state()
+
+
+# Şəhər log faylını (data/sample-data.csv) analiz edir.
+# reset=true (default) → əvvəlcə təmizləyir, sonra CSV-ni analiz edir.
+@app.post("/api/analyze-logs")
+def analyze_logs(reset: bool = True):
+    return analyze_csv(reset_first=reset)
 
 
 # Demo-nu təmizləmək üçün: bütün hadisə və siqnalları sıfırlayır.

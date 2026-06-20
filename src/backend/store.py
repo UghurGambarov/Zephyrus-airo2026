@@ -49,16 +49,19 @@ class Store:
             self.alerts = []        # aşkarlanmış təhlükə siqnalları
             self.nodes = _ilkin_nodes()
             self._sayğac = 0        # hadisə/siqnal üçün artan nömrə (id)
+            self.logs_analyzed = 0  # CSV-dən analiz edilmiş log sətirlərinin sayı
 
     def _next_id(self):
         self._sayğac += 1
         return self._sayğac
 
-    def add_event(self, source_ip, source_kind, action, detay, failed=False):
+    def add_event(self, source_ip, source_kind, action, detay, failed=False, ts=None):
         """Bir xam hadisəni qeyd edir və onu geri qaytarır.
-        failed: giriş/əməliyyat uğursuz olubsa True (ML üçün əlamətdir)."""
+        failed: giriş/əməliyyat uğursuz olubsa True (ML üçün əlamətdir).
+        ts: hadisənin öz vaxtı (datetime). Verilməsə, indiki vaxt götürülür.
+            (CSV log faylından keçmiş hadisələri yükləyəndə lazımdır.)"""
         with self._lock:
-            indi = datetime.now()
+            indi = ts if ts is not None else datetime.now()
             hadise = {
                 "id": self._next_id(),
                 "timestamp": indi.isoformat(),
@@ -107,6 +110,7 @@ class Store:
                     "total_events": len(self.events),
                     "total_alerts": len(self.alerts),
                     "high_risk": yuksek,
+                    "logs_analyzed": self.logs_analyzed,
                 },
             }
 
