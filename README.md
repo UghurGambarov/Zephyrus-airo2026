@@ -1,126 +1,272 @@
-# 🛡️ Zephyrus — City Trap
+# Zephyrus City Trap
 
-**Ağıllı Şəhər Sistemləri üçün Sİ əsaslı Kibertəhlükə Aşkarlama Prototipi**
+**AI-assisted cyber-threat detection for smart-city infrastructure, built on a deception grid.**
 
-> AIRO2026 Hackathon · Tapşırıq 1 · Komanda: **Zephyrus**
+Zephyrus City Trap monitors the activity stream of smart-city devices (traffic
+controllers, cameras, ATMs, SCADA/PLC units, city portals), detects anomalous
+behaviour with machine learning, classifies threats, scores risk, maps findings
+to MITRE ATT&CK, and produces analyst-ready incident reports. Around the real
+devices it places realistic **decoys** — no legitimate user ever touches a decoy,
+so every decoy hit is a near-zero-false-positive, high-confidence attack signal.
+
+> The user-facing application (dashboard text, incident reports) is in
+> **Azerbaijani**, the product's target locale. Code, configuration, and these
+> docs are in English.
 
 ---
 
-## Layihənin adı
-**City Trap** — Ağıllı Şəhər üçün Aldatma Şəbəkəsi (Deception Grid) ilə gücləndirilmiş Sİ əsaslı təhlükə aşkarlama mühərriki.
+## Table of contents
 
-## Komanda adı
-**Zephyrus**
+- [Key features](#key-features)
+- [Architecture overview](#architecture-overview)
+- [Technology stack](#technology-stack)
+- [Project structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Development setup](#development-setup)
+- [Environment variables](#environment-variables)
+- [Build](#build)
+- [Deployment](#deployment)
+- [API reference](#api-reference)
+- [Contributing](#contributing)
+- [Roadmap](#roadmap)
+- [Security & ethics](#security--ethics)
+- [License](#license)
 
-## Seçilmiş çağırış
-**Tapşırıq 1 — Ağıllı şəhər sistemləri üçün Sİ əsaslı kibertəhlükə aşkarlanması.**
-Sistem fəaliyyət loglarını analiz edir, anomal davranışı aşkarlayır, mümkün təhlükələri təsnif edir, administratoru xəbərdar edir (simulyasiya), təhlükə səviyyəsini göstərir (aşağı / orta / yüksək) və qısa insident hesabatı yaradır.
+## Key features
 
-## Problem
-Ağıllı şəhər qurğuları (svetoforlar, trafik sensorları, bankomatlar, yol kameraları, su sayğacları, SCADA/PLC, şəhər portalları) çox vaxt köhnə protokollar, default parollar və zəif izolyasiya ilə işləyir. Onları izləyən insan analitiklər isə minlərlə log sətrini əl ilə oxuya bilmir. Nəticədə hücumlar gec aşkarlanır.
+- **Deception grid (5 decoys).** Fake traffic-light/SCADA controller, fake city
+  portal login, canary token file, fake camera stream, and fake ATM. Any request
+  to a decoy is treated as a high-confidence threat.
+- **Layered AI detection.**
+  1. **Detection (ML):** scikit-learn `IsolationForest` learns the "normal"
+     traffic profile and flags anomalies, including previously unseen ones.
+  2. **Classification & risk (hybrid ML + rules):** assigns a threat class, risk
+     level (low/medium/high), and a MITRE ATT&CK label.
+  3. **Reporting (optional LLM):** deterministic offline incident report by
+     default; optionally enriched with Claude when an API key is present.
+- **Interactive city map (SVG):** road network, building blocks, and parks with
+  ~14 IoT devices placed at realistic locations, colour-coded live (green /
+  amber / red) by current state.
+- **Attack simulation:** a one-click, self-contained attack chain
+  (recon → exploitation → brute force → exfiltration) that drives the live feed.
+- **Log analysis center:** upload real corporate logs — Syslog (RFC 5424),
+  Windows Event (EVTX/JSON), CEF/LEEF — and a client-side converter normalizes
+  them into the engine's schema for forensic analysis.
+- **Explainable alerts:** each event carries a 0–100 anomaly score, a
+  human-readable reason, a MITRE label, and a recommended response playbook.
 
-## Həll
-Real qurğuların yanına realistik **tələlər (decoy)** yerləşdiririk: saxta svetofor kontrolleri, saxta şəhər portalı, canary token faylı, saxta kamera və saxta bankomat. **Heç bir qanuni istifadəçi tələyə toxunmur** → tələyə dəyən hər müraciət sıfır yanlış-pozitivli, ən yüksək etibarlı təhlükə siqnalıdır. Eyni zamanda mühərrik şəhərin hadisə axınını (normal + şübhəli) da analiz edir və hamısının üzərində **anomaliya aşkarlama + təsnifat + risk qiymətləndirmə + MITRE ATT&CK etiketləmə** aparır.
+## Architecture overview
 
-## Əsas funksiyalar
-- 🎯 **5 Tələ (Decoy):** saxta svetofor, saxta portal, canary token, saxta kamera və saxta bankomat (ATM "jackpotting" tələsi).
-- 🧠 **3 qatlı Sİ:** (1) IsolationForest anomaliya aşkarlama (ML), (2) hibrid ML+qayda təsnifat və risk, (3) opsional LLM hesabat.
-- 🗺️ **İnteraktiv ŞƏHƏR xəritəsi (SVG):** yol şəbəkəsi (küçələr + kəsişmələr), ~14 bina bloku/məhəllə və 2 park üzərində **~14 IoT cihazı realistik yerlərdə** — svetofor və trafik sensoru kəsişmələrdə, bankomatlar bank yanında, kameralar yollarda, hava/park sensorları parklarda. Cihazlar canlı vəziyyətə görə yaşıl/sarı/qırmızı (nəbzli) yanır; üzərinə gələndə şüşəvari (glassmorphism) tooltip; tam ekran rejimi.
-- 🎬 **Simulyasiya İdarə Mərkəzi:** "🔴 Hücumu Başlat" hücumçunun səyahətini mərhələ-mərhələ (Kəşfiyyat → İstismar → Brute Force → Sızma) real-vaxt danışır. Hücum **~15 saniyəyə** yayılır, **qeyri-bərabər (irregular) zaman aralıqları** ilə axır və **cihaz kateqoriyasına görə fərqli hücum növləri** istifadə edir (ICS/Modbus skanı, RTSP hijack, ATM jackpotting + zərərli firmware, brute-force, canary sızması). Bütün cihazlar eyni anda yox — bəzi tsiklər yalnız bir-iki cihaza təsir edir.
-- 📊 **Canlı Siqnallar (səhifələnmiş hadisə jurnalı):** ən yeni yuxarıda; **səhifə başına 5 / 10 / 15** seçimi və **Əvvəlki / Sonrakı** naviqasiyası; risk göstəriciləri **statik** (peşəkar rəng kodu).
-- 📂 **Log Analiz Mərkəzi + Çevirici:** real korporativ logları yükləyin — **Syslog (RFC 5424)**, **Windows Event (EVTX/JSON)**, **CEF/LEEF** — çevirici onları avtomatik platformanın formatına xəritələyir və ML mühərrikinə verir.
-- 📝 **İnsident Hesabatı:** Azərbaycanca xülasə + niyə yüksək riskli olduğunun izahı + tövsiyə olunan addımlar; üstündə **ədədi statistika (KPI) paneli** (hadisə, siqnal, yüksək risk, tələ vurğusu, hədəf cihaz, orta ML balı).
-- 📈 **Hər hadisə üçün** risk səviyyəsi, MITRE ATT&CK etiketi və 0–100 anomaliya balı.
-
-### İki iş rejimi (canlı simulyasiya vs forenzik analiz)
-- **🔴 Hücumu Başlat** — interaktiv təlim / canlı demo. Dramatik hekayə frontend-də idarə olunur, **lakin hər hadisə yenə backend ML mühərrikindən real bal alır (hibrid)**.
-- **📂 Log Analiz Mərkəzi** — post-insident audit / forenzika. Real yüklənmiş fayllar çevrilib ML mühərrikinə verilir.
-
-## Texnologiya steki
-- **Backend:** Python 3 · FastAPI · uvicorn (vəziyyət yaddaşda saxlanılır, verilənlər bazası yoxdur).
-- **Maşın öyrənməsi:** scikit-learn **IsolationForest** (kiçik, lokal, izah edilə bilən) · numpy.
-- **CSV log oxuma:** Python-un daxili `csv` modulu (əlavə kitabxana lazım deyil).
-- **Frontend:** React (Vite, sadə JavaScript) · tünd "SOC konsolu" dizaynı · interaktiv SVG şəhər xəritəsi.
-- **Canlı yenilənmə:** frontend hər 1 saniyədə `GET /api/state` sorğusu göndərir.
-- **LLM (opsional):** Claude (`claude-sonnet-4-6`) — yalnız `ANTHROPIC_API_KEY` varsa; əks halda offline şablon hesabat işləyir.
-
-### İstifadə olunan açıq mənbə kitabxanalar (açıqlama)
-FastAPI, uvicorn, scikit-learn, numpy, python-multipart, React, Vite və (opsional) Anthropic Claude API. Yalnız sənəd üçün: **matplotlib** — memarlıq diaqramını (`docs/architecture-diagram.png`) yaradan skriptdə işlədilir, sistemin işləməsi üçün lazım deyil. Tam siyahı: [`requirements.txt`](requirements.txt) və [`src/frontend/package.json`](src/frontend/package.json).
-
-### Sənədlər
-- Memarlıq diaqramı: [`docs/architecture-diagram.png`](docs/architecture-diagram.png) (skriptlə yaradılır: [`docs/gen_architecture_diagram.py`](docs/gen_architecture_diagram.py))
-- Problemin təsviri: [`docs/problem-description.md`](docs/problem-description.md)
-- Etik bəyannamə: [`docs/ethical-declaration.md`](docs/ethical-declaration.md)
-- Pitch deck planı: [`presentation/pitch-deck-outline.md`](presentation/pitch-deck-outline.md)
-
-## Necə işə salınır
-**Tələblər:** Windows · Python 3 · Node.js (artıq quraşdırılıb).
-
-**Ən sadə yol** — layihə qovluğunda:
 ```
-run.bat
+                       ┌─────────────────────────────┐
+                       │        Frontend (React)      │
+                       │  SOC console · SVG city map  │
+                       │  log converter (client-side) │
+                       └───────────────┬──────────────┘
+                                       │ HTTP (poll /api/state every 1s)
+                                       ▼
+                       ┌─────────────────────────────┐
+                       │       Backend (FastAPI)      │
+                       │  api → engine → store        │
+                       └───┬───────────┬───────────┬──┘
+            decoy traffic  │           │           │  uploaded / sample logs
+                           ▼           ▼           ▼
+                     ┌─────────┐ ┌──────────┐ ┌──────────────┐
+                     │ decoys  │ │  engine  │ │ log_analyzer │
+                     │ router  │ │ (ML+rule)│ │   (ingest)   │
+                     └─────────┘ └────┬─────┘ └──────────────┘
+                                      │
+                                ┌─────▼─────┐   ┌──────────┐
+                                │ in-memory │   │ report   │
+                                │   store   │   │ (LLM opt)│
+                                └───────────┘   └──────────┘
 ```
-Bu, iki pəncərə açır (Backend 8010, Frontend 5173). Sonra brauzerdə açın: **http://localhost:5173**
 
-**Əl ilə (iki ayrı terminal):**
+- **Detection engine** is the core: feature extraction → `IsolationForest`
+  scoring → hybrid classification → incident report assembly.
+- **Decoys, log ingestion, and the attack simulator** are three independent
+  event sources that all feed the same engine, guaranteeing consistent scoring.
+- **State is in-memory** (no database). It resets when the server restarts —
+  appropriate for a single-node demo/MVP; see the [roadmap](#roadmap) for the
+  persistence path.
+
+## Technology stack
+
+| Layer            | Technology                                                  |
+| ---------------- | ----------------------------------------------------------- |
+| Backend API      | Python 3.11+, FastAPI, Uvicorn (ASGI)                       |
+| Machine learning | scikit-learn (`IsolationForest`), NumPy                     |
+| Optional LLM     | Anthropic Claude (`claude-sonnet-4-6`) — offline-safe       |
+| Frontend         | React 19, Vite, plain JavaScript                            |
+| Log parsing      | Python stdlib `csv` (backend), client-side JS (frontend)    |
+| Tooling          | ESLint (frontend); Ruff/pytest recommended (backend)        |
+
+## Project structure
+
 ```
-REM 1-ci terminal (backend)
-.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8010 --app-dir src\backend
+.
+├── backend/                 # Python FastAPI service
+│   ├── app/                 # application package
+│   │   ├── api/             # route handlers (FastAPI routers)
+│   │   ├── core/            # config, constants
+│   │   ├── engine/          # ML detection + classification + reporting
+│   │   ├── ingestion/       # log/CSV ingestion
+│   │   ├── decoys/          # decoy endpoints
+│   │   └── store/           # in-memory state
+│   ├── scripts/             # dev tooling (sample-data generator, attacker)
+│   ├── tests/               # backend tests
+│   ├── pyproject.toml       # deps + tool config
+│   └── .env.example
+├── frontend/                # React + Vite SPA
+│   ├── src/
+│   │   ├── api/             # backend client
+│   │   ├── components/      # UI components
+│   │   ├── features/        # city map, feed, report, log-center, simulation
+│   │   └── lib/             # log converter, helpers
+│   ├── public/
+│   └── package.json
+├── data/                    # sample datasets
+├── docs/                    # architecture & reference docs
+├── scripts/                 # repo-level scripts (run-dev, diagram gen)
+├── PROJECT_OVERVIEW.md      # non-technical stakeholder overview
+└── README.md
+```
 
-REM 2-ci terminal (frontend)
-cd src\frontend
+## Prerequisites
+
+- **Python** 3.11 or newer
+- **Node.js** 18 or newer (and npm)
+- A POSIX shell or PowerShell
+
+## Installation
+
+```bash
+# 1. Backend
+cd backend
+python -m venv .venv
+# Windows:  .venv\Scripts\activate
+# Unix:     source .venv/bin/activate
+pip install -e .            # or: pip install -r requirements.txt
+
+# 2. Frontend
+cd ../frontend
+npm install
+```
+
+## Development setup
+
+Run the backend and frontend in two terminals.
+
+```bash
+# Terminal 1 — backend (http://127.0.0.1:8010)
+cd backend
+uvicorn app.main:app --reload --port 8010
+
+# Terminal 2 — frontend (http://localhost:5173)
+cd frontend
 npm run dev
 ```
 
-### Hücum simulyasiyasını işə salmaq
-İki yol var (hər ikisi yalnız öz lokal serverimizə təsir edir):
-- **Dashboard düyməsi (tövsiyə):** "🔴 Hücumu Başlat" → `POST /api/simulate-attack` çağırır; kəşfiyyat → tələlər → brute-force → canary zənciri ~15 saniyə ərzində canlı axına qeyri-bərabər düşür.
-- **Müstəqil skript:** server işləyərkən `python src/backend/attacker.py` — real HTTP sorğuları ilə tələləri vurur. Bu, "hücumçu"-nun bizim öz skriptimiz olduğunu və heç bir real sistemə toxunmadığını göstərir.
+Then open <http://localhost:5173>.
 
-## Demo giriş məlumatları
-**Yoxdur.** Paneli görmək üçün giriş (login) tələb olunmur — dashboard birbaşa açılır. (Saxta portal tələsi isə qəsdən hər parolu "uğursuz" qeyd edir ki, brute-force cəhdlərini tutsun — bu, real giriş deyil, tələdir.)
+**Trigger an attack simulation** from the dashboard (**🔴 Start Attack**) or via
+the API: `POST /api/simulate-attack`.
 
-## Nümunə data
-[`data/sample-data.csv`](data/sample-data.csv) — ağıllı şəhər giriş loglarının nümunəsi (sütunlar: `timestamp, source_ip, device, action, status`). Normal trafik + 3 şübhəli nümunə qarışdırılıb:
-- **Kəşfiyyat skanı** — bir kənar IP gecə qısa müddətdə çoxlu fərqli cihaza müraciət edir.
-- **Brute-force** — portala qısa müddətdə təkrar uğursuz giriş cəhdləri.
-- **Gecə icazəsiz girişi** — gecə saatında həssas SCADA cihazına giriş.
+## Environment variables
 
-Data [`src/backend/gen_sample_data.py`](src/backend/gen_sample_data.py) ilə təkrarlana bilən şəkildə yaradılır. Mühərrik bu faylı da analiz edir: `POST /api/analyze-logs` (hər log sətri eyni Sİ mühərrikindən keçir; yalnız şübhəli olanlar siqnal kimi panelə çıxır).
+All backend configuration is read from the environment. Copy
+[`backend/.env.example`](backend/.env.example) to `backend/.env`. The frontend
+reads [`frontend/.env.example`](frontend/.env.example) at build time.
 
-**Real log yükləmə:** "📂 Log Analiz Mərkəzi" düyməsi ilə öz Syslog/Windows/CEF fayllarınızı yükləyin, **🔄 Çevir** ilə platformanın formatına çevirin, sonra **🧠 ML Mühərrikinə Göndər**. Hazır daxili nümunəni dərhal sınamaq üçün **Daxili nümunə CSV** düyməsi (modalı bağlayıb analizi başladır). Çevirici sahələri xəritələyir → `POST /api/analyze-upload` ML mühərrikinə göndərir. Çevirici kodu: [`src/frontend/src/logConverter.js`](src/frontend/src/logConverter.js).
+| Variable             | Required | Default                   | Description                                                        |
+| -------------------- | -------- | ------------------------- | ------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`  | No       | _(unset)_                 | Enables Claude-generated incident reports. Falls back to template. |
+| `PORT`               | No       | `8010`                    | Backend listen port.                                               |
+| `CORS_ALLOW_ORIGINS` | No       | `http://localhost:5173`   | Comma-separated allowed origins. **Do not use `*` in production.** |
 
-### API endpoint-ləri (xülasə)
-- `GET /api/state` — bütün cari vəziyyət (frontend hər 1s soruşur)
-- `POST /api/simulate-attack` — canlı hücum simulyasiyası (kəşfiyyat → tələ → brute-force → canary)
-- `POST /api/analyze-logs` — daxili nümunə CSV-ni analiz et
-- `POST /api/analyze-upload` — yüklənmiş (çevrilmiş) logları analiz et
-- `POST /api/reset` — vəziyyəti təmizlə
-- `GET /decoy/...` — tələ endpoint-ləri
+Frontend build-time variables (Vite, `VITE_` prefix):
 
-## Məhdudiyyətlər
-- Bu, **MVP (minimum işlək məhsul)** prototipidir, real istehsalat sistemi deyil.
-- Vəziyyət yaddaşda saxlanılır — server söndükdə data sıfırlanır (verilənlər bazası yoxdur).
-- Hər şey lokal mühitdə işləyir; real qurğulara qoşulmur (şəhər xəritəsi və hücum simulyasiyadır).
-- ML modeli yanlış-pozitiv verə bilər, LLM "uydurma" (hallucination) edə bilər → buna görə **insan təsdiqi** saxlanılır.
+| Variable           | Default                   | Description              |
+| ------------------ | ------------------------- | ------------------------ |
+| `VITE_BACKEND_URL` | `http://127.0.0.1:8010`   | Backend base URL.        |
 
-## Gələcək inkişaf imkanları
-- Real qurğu log-agent inteqrasiyası (passiv log oxuma).
-- Daha çox tələ şablonu (PLC, IoT gateway, ağıllı sayğac).
-- Mərkəzi konsol + çox-saytlı (multi-tenant) idarəetmə.
-- WebSocket ilə real-vaxt push (poll əvəzinə).
-- Çeviriciyə daha çox format (Zeek, Suricata EVE, AWS CloudTrail) və server tərəfi parsing.
-- Model fərdiləşdirmə: hər saytın "normal"-ını öz tarixi loglarından öyrənmək.
+## Build
 
-## Etik və hüquqi qeydlər
-Hər şey bizim öz təcrid olunmuş lokal mühitimizdə işləyir. Heç bir real sistemə, şəbəkəyə və ya üçüncü tərəfə hücum etmirik. "Hücumçu" bizim öz simulyasiya skriptimizdir. Tələlərdə yalnız **saxta data** var — real vətəndaş məlumatı yoxdur. Həll **tamamilə müdafiə xarakterlidir**. Detallar: [`docs/ethical-declaration.md`](docs/ethical-declaration.md).
+```bash
+# Frontend production bundle → frontend/dist
+cd frontend
+npm run build
+npm run preview   # serve the built bundle locally
+```
 
----
+The backend is served directly with Uvicorn/Gunicorn; there is no build step.
 
-### Sİ harada işləyir? (qısa)
-**ML — Sİ-nin bir alt çoxluğudur, alternativi deyil.** Biz Sİ-ni 3 qatda işlədirik:
-1. **Aşkarlama (ML):** IsolationForest normal trafiki öyrənir, anomaliyanı tapır.
-2. **Təsnifat/qərar (ML + qayda):** təhlükə sinfi + risk səviyyəsi (tələ vurğusu → həmişə yüksək).
-3. **Cavab/izah (LLM, opsional):** Azərbaycanca hesabat və izah.
+## Deployment
 
-**İnsan-dövrədə (human-in-the-loop):** *"Sİ hazırlayır, insan təsdiqləyir."* Sistem analitikin işini ~10 dəfə azaldır, sıfıra endirmir.
+A typical single-node deployment:
+
+1. **Backend** — run Uvicorn behind a process manager / reverse proxy:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8010 --workers 2
+   ```
+   Set `CORS_ALLOW_ORIGINS` to the deployed frontend origin and provide secrets
+   via the environment (never commit `.env`).
+2. **Frontend** — `npm run build` and serve `frontend/dist` from any static host
+   (Nginx, CDN, Vercel, Netlify) with `VITE_BACKEND_URL` pointing at the backend.
+
+> Because state is in-memory, run a **single backend worker/instance** until a
+> shared persistence layer is introduced (see [roadmap](#roadmap)).
+
+## API reference
+
+| Method | Path                       | Description                                       |
+| ------ | -------------------------- | ------------------------------------------------- |
+| GET    | `/api/state`               | Full current state (polled by the frontend).      |
+| POST   | `/api/simulate-attack`     | Run the live attack simulation.                   |
+| POST   | `/api/analyze-logs`        | Analyze the bundled sample CSV.                   |
+| POST   | `/api/analyze-upload`      | Analyze uploaded (converted) log rows.            |
+| POST   | `/api/report/{id}/ai`      | Generate an (optional) Claude incident report.    |
+| POST   | `/api/reset`               | Clear all events and alerts.                      |
+| GET    | `/decoy/...`               | Decoy endpoints (any hit raises a high alert).    |
+
+Interactive API docs are available at `/docs` when the backend is running.
+
+## Contributing
+
+1. Create a feature branch from `main`.
+2. Keep code and comments in **English**; keep user-facing strings in
+   **Azerbaijani** (the product locale) and avoid hardcoding them in logic.
+3. Run linters/tests before opening a PR:
+   ```bash
+   cd frontend && npm run lint
+   cd backend  && ruff check . && pytest
+   ```
+4. Write a clear PR description and link any related issue.
+5. One logical change per PR; include tests for backend behaviour changes.
+
+## Roadmap
+
+- **Persistence** — replace in-memory store with a database (PostgreSQL/SQLite)
+  to survive restarts and enable horizontal scaling.
+- **Real-time transport** — replace 1s polling with WebSocket push.
+- **Device log agents** — passive log ingestion from real devices.
+- **More decoy templates** — PLC, IoT gateway, smart meter.
+- **More log formats** — Zeek, Suricata EVE, AWS CloudTrail, with server-side parsing.
+- **Per-site model tuning** — learn each site's "normal" from its own history.
+- **Multi-tenant console** — central management across multiple sites.
+- **Authentication & RBAC** — operator login and role-based access.
+
+## Security & ethics
+
+This is a **defensive** security tool. Everything runs in an isolated local
+environment; it does not attack any real system, network, or third party. The
+bundled "attacker" is a self-contained simulation targeting only `127.0.0.1`.
+Decoys contain **synthetic data only** — no real citizen information. A
+human-in-the-loop model is preserved: the AI prepares reports, a human analyst
+makes the final decision.
+
+## License
+
+Add a `LICENSE` file before public release (e.g. MIT or Apache-2.0) and
+reference it here.

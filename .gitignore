@@ -1,17 +1,23 @@
-# Python virtual environment (lokal, commit edilmir)
+# Python
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
 
-# Frontend asılılıqları (npm install ilə bərpa olunur)
+# Node / frontend
 node_modules/
-src/frontend/dist/
+frontend/dist/
 
-# Mühit dəyişənləri (API açarları və s. — heç vaxt commit edilmir)
+# Environment variables (never commit secrets)
 .env
 *.env
+!*.env.example
 
-# Redaktor/OS faylları
+# Editor / OS files
 .vscode/
 .idea/
 Thumbs.db
